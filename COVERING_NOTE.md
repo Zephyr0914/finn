@@ -1,6 +1,6 @@
 # Submission Covering Note
  
-**Candidate Submission**: FINN — Mobile-First AI Financial Investment Agent  
+**Submission**: FINN — Mobile-First AI Financial Investment Agent  
 **Live Public Deployment (Mobile & Desktop Worldwide)**: https://eab4a96badbbc6.lhr.life  
 **Local Service**: http://localhost:5000  
 
