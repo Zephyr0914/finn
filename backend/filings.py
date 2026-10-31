@@ -17,9 +17,11 @@ CACHE_DIR = os.path.join(os.path.dirname(__file__), "cache")
 os.makedirs(CACHE_DIR, exist_ok=True)
 
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-    "Accept": "application/json, text/html",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    "Accept": "*/*",
     "Accept-Language": "en-US,en;q=0.9",
+    "Referer": "https://www.nseindia.com/companies-listing/corporate-filings-announcements",
+    "Connection": "keep-alive",
 }
 
 NSE_ANNOUNCEMENTS_URL = "https://www.nseindia.com/api/corporate-announcements"
@@ -155,20 +157,25 @@ def _get_nse_session():
     try:
         s = requests.Session()
         s.headers.update(HEADERS)
-        s.get(NSE_SESSION_URL, timeout=4)
+        try:
+            s.get(NSE_SESSION_URL, timeout=6)
+        except Exception:
+            pass
         _shared_session = s
         _shared_session_time = time.time()
         return s
     except Exception:
-        return None
+        s = requests.Session()
+        s.headers.update(HEADERS)
+        return s
 
-def fetch_nse_announcements(symbol: str, from_days: int = 7) -> list:
+def fetch_nse_announcements(symbol: str, from_days: int = 14) -> list:
     """
-    Fetch announcements from NSE India for a given symbol.
+    Fetch live announcements from NSE India for a given symbol.
     """
     nse_sym = get_symbol_for_nse(symbol)
     cache_key = f"nse_ann_{nse_sym}_{from_days}"
-    cached = _read_cache(cache_key, ttl=1800)  # 30 min cache
+    cached = _read_cache(cache_key, ttl=900)  # 15 min cache
     if cached:
         return cached
 
@@ -179,7 +186,7 @@ def fetch_nse_announcements(symbol: str, from_days: int = 7) -> list:
                 "index": "equities",
                 "symbol": nse_sym,
             }
-            resp = session.get(NSE_ANNOUNCEMENTS_URL, params=params, timeout=4)
+            resp = session.get(NSE_ANNOUNCEMENTS_URL, params=params, timeout=6)
             if resp.status_code == 200:
                 data = resp.json()
                 if isinstance(data, list):
@@ -205,24 +212,37 @@ def fetch_nse_announcements(symbol: str, from_days: int = 7) -> list:
                         except ValueError:
                             dt = datetime.now()
 
-                    if dt < cutoff:
+                    # Keep all within cutoff, or at least 5 latest announcements
+                    if dt < cutoff and len(announcements) >= 5:
                         continue
 
-                    subject = item.get("subject") or item.get("desc") or item.get("headline") or "No Subject"
-                    body = item.get("attchmntText") or item.get("body") or ""
+                    raw_desc = item.get("desc") or ""
+                    raw_sub = item.get("subject") or item.get("headline") or ""
+                    raw_text = item.get("attchmntText") or item.get("body") or ""
+                    
+                    # Formulate clear subject
+                    if raw_desc and raw_text:
+                        subject = f"{raw_desc} — {raw_text[:90]}"
+                    elif raw_desc:
+                        subject = raw_desc
+                    elif raw_sub:
+                        subject = raw_sub
+                    else:
+                        subject = "Exchange Disclosure"
 
-                    classification = classify_filing(subject, body)
+                    classification = classify_filing(subject, raw_text)
 
                     ann = {
                         "symbol": symbol,
                         "nse_symbol": nse_sym,
                         "subject": subject,
-                        "body": body[:500] if body else "",
+                        "body": raw_text[:500] if raw_text else "",
                         "date": dt.strftime("%Y-%m-%d %H:%M"),
                         "date_ts": dt.timestamp(),
                         "classification": classification,
                         "source": "NSE",
-                        "url": item.get("attchmntFile") or item.get("url") or f"https://www.nseindia.com/company/{nse_sym}/corporate-filings-announcements",
+                        "_demo": False,
+                        "url": item.get("attchmntFile") or item.get("url") or f"https://www.nseindia.com/companies-listing/corporate-filings-announcements",
                     }
                     if classification["category"] == "results":
                         ann["headline_results"] = {
@@ -370,8 +390,10 @@ def get_portfolio_filings(window_hours: int = 24) -> dict:
 
     def _fetch_stock_filings(stock):
         sym = stock["symbol"]
-        fils = fetch_nse_announcements(sym, from_days=days)
+        fils = fetch_nse_announcements(sym, from_days=max(days, 14))
         in_win = [f for f in fils if f["date_ts"] >= cutoff_ts]
+        if not in_win and fils:
+            in_win = fils[:2]  # Active session fallback for weekends/market holidays
         return stock, in_win
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:

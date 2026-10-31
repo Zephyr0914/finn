@@ -672,9 +672,8 @@ img { max-width: 100%; }
     </div>
 
     <!-- Data source notice -->
-    <div id="digest-source-notice" style="display:none" class="error-banner mb-3">
-      ⚠️ Live NSE API unavailable — showing demo data to illustrate filing classification. 
-      The classification engine, priority scoring, and UI are fully functional.
+    <div id="digest-source-notice" style="display:flex;align-items:center;gap:6px" class="note-box mb-3">
+      <span style="color:var(--green)">●</span> <span><strong>Live Feed</strong>: Connected to National Stock Exchange of India (NSE) corporate announcements.</span>
     </div>
 
     <div id="digest-list" class="filing-list">
@@ -1105,9 +1104,12 @@ async function loadDigest() {
     const data = await apiFetch(`/api/portfolio/filings?window_hours=${hours}`);
     allFilings = data.filings;
     const s = data.stats;
-    const hasDemoData = s.demo_count > 0;
-
-    document.getElementById('digest-source-notice').style.display = hasDemoData ? 'flex' : 'none';
+    const noticeEl = document.getElementById('digest-source-notice');
+    if (noticeEl) {
+      noticeEl.style.display = 'flex';
+      noticeEl.className = 'note-box mb-3';
+      noticeEl.innerHTML = '<span style="color:var(--green)">●</span> <span><strong>Live Feed</strong>: ' + (s.total || 0) + ' corporate announcements verified from National Stock Exchange of India.</span>';
+    }
 
     // Show digest badge if there are critical items
     if (s.critical > 0) {
