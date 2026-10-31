@@ -3,7 +3,8 @@
 **To**: assessment@enam.com  
 **Subject**: `ENAM - IIT screening - 2027`  
 **Candidate Submission**: FINN — Mobile-First AI Financial Investment Agent  
-**Live Local Service**: `http://localhost:5000`  
+**Live Public Deployment (Mobile & Desktop Worldwide)**: https://eab4a96badbbc6.lhr.life  
+**Local Service**: http://localhost:5000  
 **Repository Path**: `C:\Users\91997\.gemini\antigravity\scratch\finn`  
 
 ---
