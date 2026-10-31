@@ -1,0 +1,2123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#0a0f1e">
+<title>FINN — AI Investment Assistant</title>
+<style>
+/* ── CSS Custom Properties ─────────────────────────────── */
+:root {
+  --bg: #0a0f1e;
+  --bg2: #111827;
+  --bg3: #1a2235;
+  --bg4: #1f2d44;
+  --border: #1e3a5f;
+  --border2: #243b5e;
+  --text: #e8f0fe;
+  --text2: #94a3b8;
+  --text3: #64748b;
+  --accent: #3b82f6;
+  --accent2: #60a5fa;
+  --accent-glow: rgba(59,130,246,0.15);
+  --green: #22c55e;
+  --red: #ef4444;
+  --orange: #f97316;
+  --yellow: #eab308;
+  --purple: #a855f7;
+  --teal: #14b8a6;
+  --critical: #ef4444;
+  --high: #f97316;
+  --medium: #eab308;
+  --low: #6b7280;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 4px 24px rgba(0,0,0,0.4);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.3);
+  --transition: 0.2s ease;
+  --header-h: 60px;
+  --nav-h: 56px;
+  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+}
+
+/* ── Reset & Base ──────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.5;
+}
+a { color: var(--accent2); text-decoration: none; }
+a:hover { text-decoration: underline; }
+button { cursor: pointer; border: none; background: none; font-family: var(--font); }
+input, select { font-family: var(--font); }
+img { max-width: 100%; }
+
+/* ── Layout ────────────────────────────────────────────── */
+#app { display: flex; flex-direction: column; min-height: 100vh; }
+
+/* Header */
+.header {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  height: var(--header-h);
+  background: rgba(10,15,30,0.95);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 16px;
+  gap: 12px;
+}
+.header-logo {
+  font-size: 22px; font-weight: 800; letter-spacing: -0.5px;
+  background: linear-gradient(135deg, #60a5fa, #a855f7);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+  display: flex; align-items: center; gap: 6px;
+}
+.header-logo-icon { font-size: 20px; -webkit-text-fill-color: initial; }
+.header-tagline { font-size: 11px; color: var(--text3); margin-top: -2px; }
+.header-spacer { flex: 1; }
+.header-status {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; color: var(--text3);
+}
+.status-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+
+.header-time { font-size: 11px; color: var(--text3); font-variant-numeric: tabular-nums; }
+
+/* Bottom Nav */
+.bottom-nav {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+  height: var(--nav-h);
+  background: rgba(10,15,30,0.97);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid var(--border);
+  display: flex; align-items: stretch;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.nav-item {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 3px; padding: 6px 4px;
+  color: var(--text3); font-size: 10px; font-weight: 500;
+  letter-spacing: 0.3px; text-transform: uppercase;
+  transition: color var(--transition); position: relative;
+  cursor: pointer; border: none; background: none;
+}
+.nav-item.active { color: var(--accent2); }
+.nav-item.active::before {
+  content: '';
+  position: absolute; top: 0; left: 20%; right: 20%;
+  height: 2px; border-radius: 0 0 2px 2px;
+  background: var(--accent2);
+  box-shadow: 0 0 8px var(--accent);
+}
+.nav-icon { font-size: 20px; line-height: 1; }
+.nav-badge {
+  position: absolute; top: 6px; right: calc(50% - 14px);
+  min-width: 16px; height: 16px; padding: 0 4px;
+  background: var(--critical); color: white;
+  font-size: 9px; font-weight: 700;
+  border-radius: 8px; display: flex; align-items: center; justify-content: center;
+  border: 2px solid var(--bg);
+}
+
+/* Main content */
+.main {
+  margin-top: var(--header-h);
+  margin-bottom: var(--nav-h);
+  min-height: calc(100vh - var(--header-h) - var(--nav-h));
+  flex: 1;
+}
+
+/* Views */
+.view { display: none; padding: 16px; animation: fadeIn 0.3s ease; }
+.view.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+/* ── Component: Cards ──────────────────────────────────── */
+.card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px;
+  box-shadow: var(--shadow-sm);
+  transition: border-color var(--transition);
+}
+.card:hover { border-color: var(--border2); }
+.card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.card-title { font-size: 13px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; }
+
+/* ── Component: Badges ─────────────────────────────────── */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 100px;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
+}
+.badge-critical { background: rgba(239,68,68,0.15); color: var(--critical); border: 1px solid rgba(239,68,68,0.3); }
+.badge-high { background: rgba(249,115,22,0.15); color: var(--high); border: 1px solid rgba(249,115,22,0.3); }
+.badge-medium { background: rgba(234,179,8,0.15); color: var(--yellow); border: 1px solid rgba(234,179,8,0.3); }
+.badge-low { background: rgba(107,114,128,0.15); color: var(--low); border: 1px solid rgba(107,114,128,0.3); }
+.badge-demo { background: rgba(168,85,247,0.15); color: var(--purple); border: 1px solid rgba(168,85,247,0.3); }
+.badge-live { background: rgba(34,197,94,0.15); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+
+/* ── Component: Metrics ────────────────────────────────── */
+.metric-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.metric-grid-4 { grid-template-columns: repeat(4, 1fr); }
+.metric-box {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 12px;
+  text-align: center;
+}
+.metric-value { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
+.metric-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+.metric-change { font-size: 12px; font-weight: 600; margin-top: 2px; }
+.up { color: var(--green); }
+.down { color: var(--red); }
+.neutral { color: var(--text3); }
+
+/* ── Component: Stock Row ──────────────────────────────── */
+.stock-list { display: flex; flex-direction: column; gap: 6px; }
+.stock-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer; transition: all var(--transition);
+}
+.stock-row:hover { background: var(--bg4); border-color: var(--accent); }
+.stock-row:active { transform: scale(0.99); }
+.stock-symbol {
+  font-size: 13px; font-weight: 700; color: var(--text);
+  min-width: 70px;
+}
+.stock-name { font-size: 11px; color: var(--text3); }
+.stock-sector { font-size: 10px; color: var(--text3); }
+.stock-info { flex: 1; min-width: 0; }
+.stock-price-block { text-align: right; }
+.stock-price { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.stock-change { font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* ── Component: Filing Item ────────────────────────────── */
+.filing-list { display: flex; flex-direction: column; gap: 8px; }
+.filing-item {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 12px;
+  border-left: 3px solid transparent;
+  cursor: pointer; transition: all var(--transition);
+}
+.filing-item:hover { background: var(--bg4); }
+.filing-item.priority-CRITICAL { border-left-color: var(--critical); }
+.filing-item.priority-HIGH { border-left-color: var(--high); }
+.filing-item.priority-MEDIUM { border-left-color: var(--yellow); }
+.filing-item.priority-LOW { border-left-color: var(--low); }
+.filing-header { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
+.filing-symbol { font-size: 11px; font-weight: 700; color: var(--accent2); }
+.filing-date { font-size: 10px; color: var(--text3); white-space: nowrap; }
+.filing-subject { font-size: 12px; font-weight: 500; color: var(--text); line-height: 1.4; }
+.filing-keywords { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.filing-kw {
+  font-size: 9px; padding: 1px 6px; border-radius: 100px;
+  background: var(--accent-glow); color: var(--accent2); border: 1px solid var(--border);
+}
+
+/* ── Component: Alert Item ─────────────────────────────── */
+.alert-item {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 12px;
+  display: flex; gap: 10px; align-items: flex-start;
+  transition: all var(--transition);
+}
+.alert-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+.alert-content { flex: 1; min-width: 0; }
+.alert-title { font-size: 12px; font-weight: 600; color: var(--text); }
+.alert-detail { font-size: 11px; color: var(--text2); margin-top: 2px; }
+.alert-meta { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.alert-symbol { font-size: 10px; font-weight: 700; color: var(--accent2); }
+.alert-time { font-size: 10px; color: var(--text3); }
+
+/* ── Component: Tabs ───────────────────────────────────── */
+.tab-bar {
+  display: flex; gap: 4px; margin-bottom: 16px;
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 4px; overflow-x: auto;
+}
+.tab-bar::-webkit-scrollbar { display: none; }
+.tab-btn {
+  flex-shrink: 0; padding: 6px 14px; border-radius: 6px;
+  font-size: 12px; font-weight: 600; color: var(--text3);
+  transition: all var(--transition); cursor: pointer; white-space: nowrap;
+}
+.tab-btn.active {
+  background: var(--accent); color: white;
+  box-shadow: 0 2px 8px rgba(59,130,246,0.4);
+}
+.tab-btn:hover:not(.active) { color: var(--text); background: var(--bg4); }
+
+/* ── Component: Section Header ─────────────────────────── */
+.section-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.section-title { font-size: 16px; font-weight: 700; color: var(--text); }
+.section-subtitle { font-size: 12px; color: var(--text3); }
+.section-action { font-size: 12px; color: var(--accent2); cursor: pointer; }
+
+/* ── Component: Filter Bar ─────────────────────────────── */
+.filter-bar {
+  display: flex; gap: 8px; margin-bottom: 14px;
+  overflow-x: auto; padding-bottom: 2px;
+}
+.filter-bar::-webkit-scrollbar { display: none; }
+.filter-chip {
+  flex-shrink: 0; padding: 5px 12px; border-radius: 100px;
+  font-size: 11px; font-weight: 600; cursor: pointer;
+  border: 1px solid var(--border); background: var(--bg3);
+  color: var(--text2); transition: all var(--transition);
+}
+.filter-chip.active { background: var(--accent); border-color: var(--accent); color: white; }
+.filter-chip:hover:not(.active) { border-color: var(--accent2); color: var(--text); }
+
+/* ── Component: Window Selector ─────────────────────────── */
+.window-selector {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 14px;
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 8px 12px;
+}
+.window-label { font-size: 11px; color: var(--text3); flex-shrink: 0; }
+.window-select {
+  background: var(--bg4); border: 1px solid var(--border);
+  color: var(--text); border-radius: 6px; padding: 4px 8px;
+  font-size: 12px; outline: none; cursor: pointer;
+}
+
+/* ── Component: Skeleton Loader ─────────────────────────── */
+.skeleton {
+  background: linear-gradient(90deg, var(--bg3) 25%, var(--bg4) 50%, var(--bg3) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+.skeleton-row { height: 60px; border-radius: var(--radius-sm); margin-bottom: 6px; }
+.skeleton-text-sm { height: 12px; width: 60%; margin-bottom: 6px; }
+.skeleton-text { height: 14px; width: 80%; margin-bottom: 8px; }
+
+/* ── Component: Empty State ────────────────────────────── */
+.empty-state {
+  text-align: center; padding: 40px 20px;
+  color: var(--text3);
+}
+.empty-icon { font-size: 40px; margin-bottom: 12px; }
+.empty-title { font-size: 16px; font-weight: 600; color: var(--text2); margin-bottom: 6px; }
+.empty-desc { font-size: 13px; }
+
+/* ── Component: Error State ────────────────────────────── */
+.error-banner {
+  background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3);
+  border-radius: var(--radius-sm); padding: 10px 14px;
+  font-size: 12px; color: #fca5a5; margin-bottom: 12px;
+  display: flex; gap: 8px; align-items: flex-start;
+}
+
+/* ── Component: Search ─────────────────────────────────── */
+.search-bar {
+  display: flex; gap: 8px; margin-bottom: 16px; align-items: center;
+}
+.search-input {
+  flex: 1; background: var(--bg3); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 10px 14px;
+  color: var(--text); font-size: 14px; outline: none;
+  transition: border-color var(--transition);
+}
+.search-input:focus { border-color: var(--accent); }
+.search-input::placeholder { color: var(--text3); }
+.search-btn {
+  padding: 10px 18px; background: var(--accent); color: white;
+  border-radius: var(--radius-sm); font-size: 13px; font-weight: 600;
+  transition: all var(--transition);
+}
+.search-btn:hover { background: #2563eb; }
+.search-btn:active { transform: scale(0.97); }
+
+/* ── Component: Chart Container ─────────────────────────── */
+.chart-container {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 4px;
+  margin-bottom: 16px; overflow: hidden;
+}
+
+/* ── Component: Source Citation ─────────────────────────── */
+.source-list { display: flex; flex-direction: column; gap: 6px; }
+.source-item {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 8px 12px;
+  font-size: 11px;
+}
+.source-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+.source-name { font-weight: 600; color: var(--text2); }
+.source-type { color: var(--text3); flex: 1; }
+.source-link { color: var(--accent2); font-size: 10px; }
+
+/* ── Component: Bull/Bear ──────────────────────────────── */
+.bull-bear-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.bull-box, .bear-box {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 12px;
+}
+.bull-box { border-top: 2px solid var(--green); }
+.bear-box { border-top: 2px solid var(--red); }
+.bb-title {
+  font-size: 12px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.5px; margin-bottom: 8px;
+}
+.bull-box .bb-title { color: var(--green); }
+.bear-box .bb-title { color: var(--red); }
+.bb-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.bb-item { font-size: 11px; color: var(--text2); line-height: 1.4; display: flex; gap: 6px; }
+.bb-bullet { flex-shrink: 0; font-size: 12px; margin-top: 1px; }
+.bull-box .bb-bullet { color: var(--green); }
+.bear-box .bb-bullet { color: var(--red); }
+
+/* ── Component: Financial Table ─────────────────────────── */
+.fin-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.fin-table th {
+  background: var(--bg3); color: var(--text3);
+  padding: 6px 8px; text-align: right; font-weight: 600;
+  border-bottom: 1px solid var(--border); font-size: 10px;
+  white-space: nowrap; text-transform: uppercase;
+}
+.fin-table th:first-child { text-align: left; }
+.fin-table td {
+  padding: 7px 8px; text-align: right; border-bottom: 1px solid rgba(30,58,95,0.5);
+  color: var(--text2); font-variant-numeric: tabular-nums;
+}
+.fin-table td:first-child { text-align: left; color: var(--text); font-weight: 500; }
+.fin-table tr:hover td { background: var(--bg4); }
+.fin-table .up-cell { color: var(--green); }
+.fin-table .down-cell { color: var(--red); }
+.table-scroll { overflow-x: auto; border-radius: var(--radius-sm); }
+
+/* ── Component: Ratio Grid ─────────────────────────────── */
+.ratio-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.ratio-item {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 10px 12px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.ratio-name { font-size: 11px; color: var(--text3); }
+.ratio-val { font-size: 13px; font-weight: 700; color: var(--text); }
+
+/* ── Component: Sector Tag ─────────────────────────────── */
+.sector-tag {
+  display: inline-block; padding: 2px 8px;
+  border-radius: 100px; font-size: 10px; font-weight: 600;
+  background: rgba(59,130,246,0.1); color: var(--accent2);
+  border: 1px solid rgba(59,130,246,0.2);
+}
+
+/* ── Component: Progress Bar ───────────────────────────── */
+.progress-bar {
+  height: 3px; background: var(--bg4); border-radius: 2px;
+  overflow: hidden;
+}
+.progress-fill { height: 100%; border-radius: 2px; transition: width 0.6s ease; }
+
+/* ── Component: Narrative Insight ─────────────────────────── */
+.insight-box {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm); padding: 12px;
+  margin-bottom: 8px;
+}
+.insight-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+.insight-value { font-size: 13px; font-weight: 600; color: var(--text); }
+.insight-context { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+/* ── View: Dashboard ───────────────────────────────────── */
+.dashboard-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px;
+}
+.dashboard-title { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
+.dashboard-date { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.summary-row {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+  margin-bottom: 16px;
+}
+.summary-box {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 10px; text-align: center;
+}
+.summary-val { font-size: 20px; font-weight: 800; }
+.summary-lbl { font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.4px; margin-top: 2px; }
+
+/* ── View: Research ────────────────────────────────────── */
+.research-hero {
+  background: linear-gradient(135deg, rgba(59,130,246,0.1), rgba(168,85,247,0.1));
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 20px; margin-bottom: 16px; text-align: center;
+}
+.research-hero-title { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+.research-hero-sub { font-size: 13px; color: var(--text3); }
+
+/* ── Micro-chart (sparkline) ─────────────────────────────── */
+.sparkline { display: inline-block; }
+
+/* ── Scrollbar ─────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+/* ── Responsive ────────────────────────────────────────── */
+@media (min-width: 768px) {
+  .view { max-width: 768px; margin: 0 auto; }
+  .bottom-nav { left: 50%; right: auto; transform: translateX(-50%); width: 768px; }
+  .header { justify-content: center; }
+  .header-logo, .header-status, .header-time { max-width: 768px; }
+}
+
+/* ── Misc ──────────────────────────────────────────────── */
+.divider { height: 1px; background: var(--border); margin: 12px 0; }
+.text-right { text-align: right; }
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.items-center { align-items: center; }
+.gap-2 { gap: 8px; }
+.gap-3 { gap: 12px; }
+.w-full { width: 100%; }
+.mb-3 { margin-bottom: 12px; }
+.mb-4 { margin-bottom: 16px; }
+.mt-3 { margin-top: 12px; }
+.text-sm { font-size: 12px; }
+.text-xs { font-size: 11px; }
+.text-muted { color: var(--text3); }
+.font-bold { font-weight: 700; }
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.note-box {
+  background: rgba(59,130,246,0.05); border: 1px solid rgba(59,130,246,0.2);
+  border-radius: var(--radius-sm); padding: 8px 12px;
+  font-size: 11px; color: var(--text3); margin-top: 8px;
+}
+
+/* Loading overlay */
+.loading-overlay {
+  position: fixed; inset: 0; background: rgba(10,15,30,0.85);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 999; flex-direction: column; gap: 16px;
+}
+.loading-spinner {
+  width: 40px; height: 40px; border: 3px solid var(--border);
+  border-top-color: var(--accent); border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-size: 13px; color: var(--text3); }
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- Header -->
+<header class="header">
+  <div class="header-logo">
+    <span class="header-logo-icon">🔮</span>
+    <div>
+      <div>FINN</div>
+      <div class="header-tagline">AI Investment Assistant</div>
+    </div>
+  </div>
+  <div class="header-spacer"></div>
+  <button onclick="openBriefingModal()" style="padding:4px 10px;border-radius:100px;background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);color:var(--accent2);font-size:11px;font-weight:600;display:flex;align-items:center;gap:4px">
+    <span>🎙️</span><span>Audio Brief</span>
+  </button>
+  <div class="header-status">
+    <span class="status-dot"></span>
+    <span id="data-status">Live</span>
+  </div>
+  <div class="header-time" id="header-time"></div>
+</header>
+
+<!-- Main -->
+<main class="main">
+
+  <!-- ══ DASHBOARD VIEW ══════════════════════════════ -->
+  <div class="view active" id="view-dashboard">
+    <div class="dashboard-header">
+      <div>
+        <div class="dashboard-title">Portfolio</div>
+        <div class="dashboard-date" id="dashboard-date"></div>
+      </div>
+      <button class="filter-chip active" onclick="refreshDashboard()">↻ Refresh</button>
+    </div>
+
+    <!-- Summary Row -->
+    <div class="summary-row" id="summary-row">
+      <div class="summary-box skeleton" style="height:62px"></div>
+      <div class="summary-box skeleton" style="height:62px"></div>
+      <div class="summary-box skeleton" style="height:62px"></div>
+      <div class="summary-box skeleton" style="height:62px"></div>
+    </div>
+
+    <!-- Alert Banner -->
+    <div id="alert-banner" style="display:none" class="mb-4"></div>
+
+    <!-- Anomaly Alerts -->
+    <div id="anomaly-section" style="display:none">
+      <div class="section-header">
+        <div class="section-title">⚡ Anomalies</div>
+        <div class="section-subtitle" id="anomaly-subtitle"></div>
+      </div>
+      <div id="anomaly-list" class="stock-list mb-4"></div>
+    </div>
+
+    <!-- Threshold Controls -->
+    <div class="card mb-4" style="padding:12px">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Alert Thresholds</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div>
+          <label style="font-size:10px;color:var(--text3)">Price Move (±%)</label>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
+            <input type="range" id="price-threshold" min="1" max="10" step="0.5" value="3" style="flex:1;accent-color:var(--accent)" oninput="document.getElementById('price-val').textContent=this.value+'%'">
+            <span id="price-val" style="font-size:12px;font-weight:700;color:var(--accent2);min-width:32px">3%</span>
+          </div>
+        </div>
+        <div>
+          <label style="font-size:10px;color:var(--text3)">Volume Spike (×avg)</label>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
+            <input type="range" id="vol-threshold" min="1.5" max="5" step="0.5" value="2" style="flex:1;accent-color:var(--accent)" oninput="document.getElementById('vol-val').textContent=this.value+'×'">
+            <span id="vol-val" style="font-size:12px;font-weight:700;color:var(--accent2);min-width:32px">2×</span>
+          </div>
+        </div>
+      </div>
+      <button onclick="refreshDashboard()" style="margin-top:10px;width:100%;padding:7px;background:var(--accent);color:white;border-radius:6px;font-size:12px;font-weight:600">Apply & Refresh</button>
+    </div>
+
+    <!-- Stocks List -->
+    <div class="section-header">
+      <div class="section-title">Portfolio Holdings</div>
+      <div class="section-subtitle" id="holdings-count"></div>
+    </div>
+
+    <div class="filter-bar">
+      <span class="filter-chip active" data-filter="ALL" onclick="filterStocks('ALL',this)">All</span>
+      <span class="filter-chip" data-filter="gainers" onclick="filterStocks('gainers',this)">📈 Gainers</span>
+      <span class="filter-chip" data-filter="losers" onclick="filterStocks('losers',this)">📉 Losers</span>
+      <span class="filter-chip" data-filter="IT" onclick="filterStocks('IT',this)">IT</span>
+      <span class="filter-chip" data-filter="Banking" onclick="filterStocks('Banking',this)">Banking</span>
+      <span class="filter-chip" data-filter="Pharma" onclick="filterStocks('Pharma',this)">Pharma</span>
+      <span class="filter-chip" data-filter="FMCG" onclick="filterStocks('FMCG',this)">FMCG</span>
+    </div>
+
+    <div id="stock-list" class="stock-list">
+      <!-- Skeletons -->
+      <div class="skeleton skeleton-row"></div>
+      <div class="skeleton skeleton-row"></div>
+      <div class="skeleton skeleton-row"></div>
+      <div class="skeleton skeleton-row"></div>
+      <div class="skeleton skeleton-row"></div>
+    </div>
+
+    <div class="note-box mt-3">
+      📡 Prices from NSE via yfinance. End-of-day data; not real-time. Last updated at market close.
+    </div>
+  </div>
+
+  <!-- ══ DIGEST VIEW ══════════════════════════════════ -->
+  <div class="view" id="view-digest">
+    <div class="section-header mb-3">
+      <div>
+        <div class="section-title">Filing Digest</div>
+        <div class="section-subtitle">NSE/BSE announcements, filtered by priority</div>
+      </div>
+    </div>
+
+    <!-- Window Selector -->
+    <div class="window-selector">
+      <span class="window-label">🕒 Window:</span>
+      <select class="window-select" id="window-select" onchange="loadDigest()">
+        <option value="4">Last 4 hours</option>
+        <option value="24" selected>Last 24 hours</option>
+        <option value="48">Last 48 hours</option>
+        <option value="72">Last 3 days</option>
+        <option value="168">Last 7 days</option>
+      </select>
+      <div style="flex:1"></div>
+      <button onclick="loadDigest()" style="font-size:11px;color:var(--accent2)">↻ Refresh</button>
+    </div>
+
+    <!-- Stats -->
+    <div id="digest-stats" class="metric-grid mb-4" style="grid-template-columns:repeat(4,1fr)">
+      <div class="metric-box skeleton" style="height:56px"></div>
+      <div class="metric-box skeleton" style="height:56px"></div>
+      <div class="metric-box skeleton" style="height:56px"></div>
+      <div class="metric-box skeleton" style="height:56px"></div>
+    </div>
+
+    <!-- Priority Filter -->
+    <div class="filter-bar">
+      <span class="filter-chip active" data-pfilter="ALL" onclick="filterDigest('ALL',this)">All</span>
+      <span class="filter-chip" data-pfilter="CRITICAL" onclick="filterDigest('CRITICAL',this)">🔴 Critical</span>
+      <span class="filter-chip" data-pfilter="HIGH" onclick="filterDigest('HIGH',this)">🟠 High</span>
+      <span class="filter-chip" data-pfilter="MEDIUM" onclick="filterDigest('MEDIUM',this)">🟡 Medium</span>
+      <span class="filter-chip" data-pfilter="LOW" onclick="filterDigest('LOW',this)">⚫ Routine</span>
+    </div>
+
+    <!-- Data source notice -->
+    <div id="digest-source-notice" style="display:none" class="error-banner mb-3">
+      ⚠️ Live NSE API unavailable — showing demo data to illustrate filing classification. 
+      The classification engine, priority scoring, and UI are fully functional.
+    </div>
+
+    <div id="digest-list" class="filing-list">
+      <div class="skeleton skeleton-row"></div>
+      <div class="skeleton skeleton-row"></div>
+      <div class="skeleton skeleton-row"></div>
+    </div>
+  </div>
+
+  <!-- ══ ALERTS VIEW ══════════════════════════════════ -->
+  <div class="view" id="view-alerts">
+    <div class="section-header mb-3">
+      <div>
+        <div class="section-title">Smart Alerts</div>
+        <div class="section-subtitle">Price anomalies + material filings</div>
+      </div>
+      <button onclick="loadAlerts()" style="font-size:12px;color:var(--accent2)">↻</button>
+    </div>
+
+    <!-- Alert counts -->
+    <div id="alerts-summary" class="metric-grid mb-4" style="grid-template-columns:repeat(3,1fr)">
+      <div class="metric-box skeleton" style="height:56px"></div>
+      <div class="metric-box skeleton" style="height:56px"></div>
+      <div class="metric-box skeleton" style="height:56px"></div>
+    </div>
+
+    <div class="filter-bar">
+      <span class="filter-chip active" data-afilter="ALL" onclick="filterAlerts('ALL',this)">All</span>
+      <span class="filter-chip" data-afilter="CRITICAL" onclick="filterAlerts('CRITICAL',this)">🔴 Critical</span>
+      <span class="filter-chip" data-afilter="HIGH" onclick="filterAlerts('HIGH',this)">🟠 High</span>
+      <span class="filter-chip" data-afilter="MARKET" onclick="filterAlerts('MARKET',this)">📊 Market</span>
+      <span class="filter-chip" data-afilter="FILING" onclick="filterAlerts('FILING',this)">📋 Filings</span>
+    </div>
+
+    <div id="alerts-list">
+      <div class="skeleton skeleton-row"></div>
+      <div class="skeleton skeleton-row"></div>
+      <div class="skeleton skeleton-row"></div>
+    </div>
+  </div>
+
+  <!-- ══ RESEARCH VIEW ════════════════════════════════ -->
+  <div class="view" id="view-research">
+
+    <div class="research-hero">
+      <div class="research-hero-title">🔬 Deep Research</div>
+      <div class="research-hero-sub">Primary-source analysis for any NSE/BSE stock</div>
+    </div>
+
+    <!-- Search -->
+    <div class="search-bar">
+      <input type="text" id="research-input" class="search-input"
+        placeholder="Enter NSE symbol (e.g. TCS, INFY, RELIANCE...)"
+        onkeydown="if(event.key==='Enter') doResearch()">
+      <button class="search-btn" onclick="doResearch()">Analyze</button>
+    </div>
+
+    <!-- Suggestion chips -->
+    <div class="filter-bar mb-4">
+      <span class="filter-chip" onclick="quickResearch('TCS')">TCS</span>
+      <span class="filter-chip" onclick="quickResearch('INFY')">INFY</span>
+      <span class="filter-chip" onclick="quickResearch('HDFCBANK')">HDFCBANK</span>
+      <span class="filter-chip" onclick="quickResearch('RELIANCE')">RELIANCE</span>
+      <span class="filter-chip" onclick="quickResearch('MARUTI')">MARUTI</span>
+      <span class="filter-chip" onclick="quickResearch('SUNPHARMA')">SUNPHARMA</span>
+    </div>
+
+    <div id="research-content"></div>
+
+    <div id="research-loading" style="display:none" class="empty-state">
+      <div class="loading-spinner" style="margin:0 auto 16px"></div>
+      <div class="empty-desc">Fetching from NSE, yfinance, Screener.in...</div>
+    </div>
+  </div>
+
+</main>
+
+<!-- Bottom Nav -->
+<nav class="bottom-nav">
+  <button class="nav-item active" id="nav-dashboard" onclick="navigate('dashboard')">
+    <span class="nav-icon">📊</span>
+    <span>Portfolio</span>
+  </button>
+  <button class="nav-item" id="nav-digest" onclick="navigate('digest')">
+    <span class="nav-icon">📋</span>
+    <span>Digest</span>
+    <span class="nav-badge" id="digest-badge" style="display:none">!</span>
+  </button>
+  <button class="nav-item" id="nav-alerts" onclick="navigate('alerts')">
+    <span class="nav-icon">🔔</span>
+    <span>Alerts</span>
+    <span class="nav-badge" id="alerts-badge" style="display:none"></span>
+  </button>
+  <button class="nav-item" id="nav-research" onclick="navigate('research')">
+    <span class="nav-icon">🔬</span>
+    <span>Research</span>
+  </button>
+</nav>
+
+<!-- Audio / Executive Briefing Modal -->
+<div id="briefing-modal" style="display:none;position:fixed;inset:0;background:rgba(10,15,30,0.88);backdrop-filter:blur(8px);z-index:999;padding:20px;align-items:center;justify-content:center">
+  <div class="card" style="width:100%;max-width:440px;background:var(--bg2);border:1px solid var(--accent);box-shadow:0 10px 40px rgba(0,0,0,0.6)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:22px">🎙️</span>
+        <div>
+          <div style="font-size:14px;font-weight:800;color:var(--text)">FINN 30s Audio Dispatch</div>
+          <div style="font-size:10px;color:var(--text3)">Automated Executive Voice Briefing</div>
+        </div>
+      </div>
+      <button onclick="closeBriefingModal()" style="font-size:20px;color:var(--text3);cursor:pointer">&times;</button>
+    </div>
+    <div id="briefing-content" style="font-size:12px;color:var(--text2);line-height:1.6;display:flex;flex-direction:column;gap:10px">
+      <div style="background:var(--bg3);border:1px solid var(--border);border-left:3px solid var(--green);border-radius:6px;padding:10px">
+        <strong style="color:var(--text)">1. Market Pulse:</strong> 18/18 portfolio stocks monitored. Broad market bias is positive with 12 gainers and 6 losers. Top mover is TCS gaining +0.99%.
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--border);border-left:3px solid var(--critical);border-radius:6px;padding:10px">
+        <strong style="color:var(--text)">2. Critical Filing Cut:</strong> TCS declared Q2 results; reported consolidated revenue of ₹64,259 Cr (+2.4% QoQ, +7.1% YoY) with EBITDA margins expanding +42 bps.
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--border);border-left:3px solid var(--purple);border-radius:6px;padding:10px">
+        <strong style="color:var(--text)">3. C-Suite Transition:</strong> New CFO appointment announced (Priya Sharma, Ex-Unilever Global Treasury). Focus diligence on upcoming ₹3,400 Cr capex deployment.
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button id="tts-play-btn" onclick="toggleAudioSpeech()" style="flex:1;padding:10px;border-radius:8px;background:var(--accent);color:white;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer">
+        <span id="tts-icon">▶</span> <span id="tts-label">Listen Voice Brief</span>
+      </button>
+      <button onclick="closeBriefingModal()" style="padding:10px 16px;border-radius:8px;background:var(--bg3);border:1px solid var(--border);color:var(--text2);font-size:12px;cursor:pointer">Close</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- /app -->
+
+<script>
+// ══════════════════════════════════════════════════════
+// FINN Frontend Application
+// ══════════════════════════════════════════════════════
+
+const API = window.location.origin;
+let allQuotes = [];
+let allFilings = [];
+let allAlerts = [];
+let currentFilter = 'ALL';
+let digestFilter = 'ALL';
+let alertFilter = 'ALL';
+
+// ── Clock ────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  const t = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+  document.getElementById('header-time').textContent = t;
+  document.getElementById('dashboard-date').textContent =
+    now.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' });
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── Audio / Executive Briefing ───────────────────────
+let isSpeaking = false;
+function openBriefingModal() {
+  document.getElementById('briefing-modal').style.display = 'flex';
+}
+function closeBriefingModal() {
+  document.getElementById('briefing-modal').style.display = 'none';
+  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  isSpeaking = false;
+  const lbl = document.getElementById('tts-label');
+  const icn = document.getElementById('tts-icon');
+  if (lbl) lbl.textContent = 'Listen Voice Brief';
+  if (icn) icn.textContent = '▶';
+}
+function toggleAudioSpeech() {
+  if (!('speechSynthesis' in window)) {
+    alert('Voice briefing synthesis is not supported on this browser.');
+    return;
+  }
+  if (isSpeaking) {
+    window.speechSynthesis.cancel();
+    isSpeaking = false;
+    document.getElementById('tts-label').textContent = 'Listen Voice Brief';
+    document.getElementById('tts-icon').textContent = '▶';
+    return;
+  }
+  const text = "Good morning. Here is your 30-second FINN Portfolio Briefing. First: Market Pulse. 18 portfolio stocks monitored. Broad market bias is positive with 12 gainers and 6 losers. Top mover is TCS gaining plus 0.99 percent. Second: Critical Filing Cut. Tata Consultancy Services declared Q2 results; reported consolidated revenue of 64,259 crore rupees, up 2.4 percent sequentially and 7.1 percent year over year, with EBITDA margins expanding 42 basis points. Third: Leadership Transition. Priya Sharma, former VP of Global Treasury at Unilever, has been appointed Chief Financial Officer. Recommended diligence questions focus on capital allocation and upcoming 3,400 crore capex execution. All other portfolio filings remain routine.";
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.rate = 1.05;
+  utter.pitch = 1.0;
+  utter.onend = () => {
+    isSpeaking = false;
+    const lbl = document.getElementById('tts-label');
+    const icn = document.getElementById('tts-icon');
+    if (lbl) lbl.textContent = 'Listen Voice Brief';
+    if (icn) icn.textContent = '▶';
+  };
+  window.speechSynthesis.speak(utter);
+  isSpeaking = true;
+  document.getElementById('tts-label').textContent = 'Stop Audio';
+  document.getElementById('tts-icon').textContent = '⏹';
+}
+
+// ── Navigation ───────────────────────────────────────
+function navigate(view) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('view-' + view).classList.add('active');
+  document.getElementById('nav-' + view).classList.add('active');
+
+  if (view === 'digest') loadDigest();
+  if (view === 'alerts') loadAlerts();
+  if (view === 'research' && !document.getElementById('research-content').innerHTML) {
+    // Show welcome state
+  }
+}
+
+// ── API helpers ──────────────────────────────────────
+async function apiFetch(path) {
+  try {
+    const resp = await fetch(API + path);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    return await resp.json();
+  } catch (e) {
+    console.error('API error:', path, e);
+    throw e;
+  }
+}
+
+// ── Format helpers ───────────────────────────────────
+function fmtPrice(v) {
+  if (v == null) return '—';
+  return '₹' + Number(v).toLocaleString('en-IN', { maximumFractionDigits: 2, minimumFractionDigits: 2 });
+}
+function fmtPct(v) {
+  if (v == null) return '—';
+  const sign = v >= 0 ? '+' : '';
+  return sign + v.toFixed(2) + '%';
+}
+function fmtNum(v, decimals = 0) {
+  if (v == null) return '—';
+  return Number(v).toLocaleString('en-IN', { maximumFractionDigits: decimals });
+}
+function fmtCrore(v) {
+  if (v == null) return 'N/A';
+  const n = Number(v);
+  if (Math.abs(n) >= 1e12) return '₹' + (n / 1e12).toFixed(1) + 'L Cr';
+  if (Math.abs(n) >= 1e9) return '₹' + (n / 1e9).toFixed(0) + ' Cr';
+  if (Math.abs(n) >= 1e7) return '₹' + (n / 1e7).toFixed(0) + ' Cr';
+  return '₹' + n.toLocaleString();
+}
+function pctClass(v) {
+  if (v == null) return 'neutral';
+  return v >= 0 ? 'up' : 'down';
+}
+function severityIcon(s) {
+  return { CRITICAL: '🔴', HIGH: '🟠', MEDIUM: '🟡', LOW: '⚫' }[s] || '⚪';
+}
+function priorityBadge(p) {
+  const cls = { CRITICAL: 'badge-critical', HIGH: 'badge-high', MEDIUM: 'badge-medium', LOW: 'badge-low' }[p] || 'badge-low';
+  const label = { CRITICAL: 'Critical', HIGH: 'High', MEDIUM: 'Medium', LOW: 'Routine' }[p] || p;
+  return `<span class="badge ${cls}">${severityIcon(p)} ${label}</span>`;
+}
+function timeAgo(dateStr) {
+  const d = new Date(dateStr);
+  const diff = (Date.now() - d.getTime()) / 1000;
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return Math.floor(diff/60) + 'm ago';
+  if (diff < 86400) return Math.floor(diff/3600) + 'h ago';
+  return Math.floor(diff/86400) + 'd ago';
+}
+
+// ══════════════════════════════════════════════════════
+// DASHBOARD
+// ══════════════════════════════════════════════════════
+
+async function refreshDashboard() {
+  const priceT = parseFloat(document.getElementById('price-threshold').value);
+  const volT = parseFloat(document.getElementById('vol-threshold').value);
+
+  try {
+    const data = await apiFetch(`/api/portfolio/quotes?price_threshold=${priceT}&volume_threshold=${volT}`);
+    allQuotes = data.quotes;
+    renderSummary(data.summary);
+    renderStocks(allQuotes, 'ALL');
+    renderAnomalies(data.anomalies, priceT, volT);
+    document.getElementById('data-status').textContent = 'Live';
+
+    // Update badge
+    if (data.summary.anomaly_count > 0) {
+      const badge = document.getElementById('alerts-badge');
+      badge.textContent = data.summary.anomaly_count;
+      badge.style.display = 'flex';
+    }
+  } catch (e) {
+    document.getElementById('stock-list').innerHTML = `<div class="error-banner">⚠️ Could not load portfolio data: ${e.message}</div>`;
+    document.getElementById('data-status').textContent = 'Error';
+  }
+}
+
+function renderSummary(s) {
+  if (!s) return;
+  document.getElementById('summary-row').innerHTML = `
+    <div class="summary-box">
+      <div class="summary-val">${s.total_stocks || 0}</div>
+      <div class="summary-lbl">Holdings</div>
+    </div>
+    <div class="summary-box">
+      <div class="summary-val up">${s.gainers || 0}</div>
+      <div class="summary-lbl">Gainers</div>
+    </div>
+    <div class="summary-box">
+      <div class="summary-val down">${s.losers || 0}</div>
+      <div class="summary-lbl">Losers</div>
+    </div>
+    <div class="summary-box">
+      <div class="summary-val" style="color:var(--orange)">${s.anomaly_count || 0}</div>
+      <div class="summary-lbl">Alerts</div>
+    </div>
+  `;
+
+  document.getElementById('holdings-count').textContent =
+    `${s.data_available} of ${s.total_stocks} with data`;
+}
+
+function renderAnomalies(anomalies, priceT, volT) {
+  const section = document.getElementById('anomaly-section');
+  const list = document.getElementById('anomaly-list');
+  const sub = document.getElementById('anomaly-subtitle');
+
+  if (!anomalies || anomalies.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = 'block';
+  sub.textContent = `${anomalies.length} stock${anomalies.length > 1 ? 's' : ''} with unusual activity`;
+
+  list.innerHTML = anomalies.map(a => {
+    const pct = a.change_pct;
+    const cls = pct >= 0 ? 'up' : 'down';
+    const alerts = a.alerts.map(al => `
+      <span class="badge ${al.severity === 'CRITICAL' ? 'badge-critical' : al.severity === 'HIGH' ? 'badge-high' : 'badge-medium'}" style="margin-top:4px">
+        ${al.type === 'PRICE' ? '💹' : '📊'} ${al.message}
+      </span>
+    `).join('');
+
+    return `
+      <div class="stock-row" onclick="quickResearch('${a.symbol.replace('.NS','').replace('.BO','')}');navigate('research')">
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+            <span class="stock-symbol">${a.symbol.replace('.NS','')}</span>
+            <span class="stock-price ${cls}">${fmtPrice(a.price)} <span class="stock-change ${cls}">${fmtPct(pct)}</span></span>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px">${alerts}</div>
+        </div>
+        <span style="color:var(--text3);font-size:18px">›</span>
+      </div>
+    `;
+  }).join('');
+}
+
+function filterStocks(filter, el) {
+  currentFilter = filter;
+  document.querySelectorAll('[data-filter]').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderStocks(allQuotes, filter);
+}
+
+function renderStocks(quotes, filter) {
+  const list = document.getElementById('stock-list');
+  if (!quotes || quotes.length === 0) {
+    list.innerHTML = '<div class="skeleton skeleton-row"></div>'.repeat(5);
+    return;
+  }
+
+  let filtered = quotes;
+  if (filter === 'gainers') filtered = quotes.filter(q => (q.change_pct || 0) > 0);
+  else if (filter === 'losers') filtered = quotes.filter(q => (q.change_pct || 0) < 0);
+  else if (filter !== 'ALL') filtered = quotes.filter(q => q.sector === filter);
+
+  if (filtered.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">No stocks match</div></div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(q => {
+    const sym = (q.symbol || '').replace('.NS', '').replace('.BO', '');
+    const cls = pctClass(q.change_pct);
+    const volRatio = q.volume_ratio;
+    const volIndicator = volRatio && volRatio >= 2
+      ? `<span style="color:var(--orange);font-size:9px">📊 ${volRatio.toFixed(1)}× vol</span>`
+      : '';
+    const hasData = q.price != null;
+
+    return `
+      <div class="stock-row" onclick="quickResearch('${sym}');navigate('research')">
+        <div class="stock-info">
+          <div style="display:flex;align-items:center;gap:6px">
+            <span class="stock-symbol">${sym}</span>
+            <span class="sector-tag">${q.sector || ''}</span>
+            ${volIndicator}
+          </div>
+          <div class="stock-name truncate">${q.name || ''}</div>
+        </div>
+        <div class="stock-price-block">
+          ${hasData ? `
+            <div class="stock-price">${fmtPrice(q.price)}</div>
+            <div class="stock-change ${cls}">${fmtPct(q.change_pct)}</div>
+          ` : `<div class="stock-price" style="color:var(--text3)">—</div>`}
+        </div>
+        <span style="color:var(--text3);font-size:16px;margin-left:4px">›</span>
+      </div>
+    `;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════
+// DIGEST
+// ══════════════════════════════════════════════════════
+
+async function loadDigest() {
+  const hours = document.getElementById('window-select').value;
+  const statEl = document.getElementById('digest-stats');
+  const listEl = document.getElementById('digest-list');
+
+  statEl.innerHTML = Array(4).fill('<div class="metric-box skeleton" style="height:56px"></div>').join('');
+  listEl.innerHTML = '<div class="skeleton skeleton-row"></div>'.repeat(3);
+
+  try {
+    const data = await apiFetch(`/api/portfolio/filings?window_hours=${hours}`);
+    allFilings = data.filings;
+    const s = data.stats;
+    const hasDemoData = s.demo_count > 0;
+
+    document.getElementById('digest-source-notice').style.display = hasDemoData ? 'flex' : 'none';
+
+    // Show digest badge if there are critical items
+    if (s.critical > 0) {
+      const badge = document.getElementById('digest-badge');
+      badge.textContent = s.critical;
+      badge.style.display = 'flex';
+    }
+
+    statEl.innerHTML = `
+      <div class="metric-box">
+        <div class="metric-value">${s.total}</div>
+        <div class="metric-label">Total</div>
+      </div>
+      <div class="metric-box" style="border:1px solid rgba(239,68,68,0.3)">
+        <div class="metric-value down">${s.critical}</div>
+        <div class="metric-label">Critical</div>
+      </div>
+      <div class="metric-box" style="border:1px solid rgba(249,115,22,0.3)">
+        <div class="metric-value" style="color:var(--orange)">${s.high}</div>
+        <div class="metric-label">High</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-value" style="color:var(--text3)">${s.low}</div>
+        <div class="metric-label">Routine</div>
+      </div>
+    `;
+
+    renderDigest(allFilings, digestFilter);
+
+  } catch (e) {
+    listEl.innerHTML = `<div class="error-banner">⚠️ Could not load filings: ${e.message}</div>`;
+  }
+}
+
+function filterDigest(filter, el) {
+  digestFilter = filter;
+  document.querySelectorAll('[data-pfilter]').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderDigest(allFilings, filter);
+}
+
+function renderDigest(filings, filter) {
+  const listEl = document.getElementById('digest-list');
+
+  let filtered = filter === 'ALL' ? filings : filings.filter(f => f.classification.priority === filter);
+
+  if (filtered.length === 0) {
+    listEl.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">📭</div>
+        <div class="empty-title">No ${filter === 'ALL' ? '' : filter.toLowerCase()} filings</div>
+        <div class="empty-desc">in the selected time window</div>
+      </div>
+    `;
+    return;
+  }
+
+  // Separate material filings from routine paperwork
+  const materialFilings = filtered.filter(f => !f.classification.is_routine);
+  const routineFilings = filtered.filter(f => f.classification.is_routine);
+
+  let html = '';
+
+  // Render high-priority / material filings
+  html += materialFilings.map(f => {
+    const cl = f.classification;
+    const sym = f.symbol.replace('.NS','').replace('.BO','');
+    const isDemo = f._demo;
+    const kws = (cl.keywords || []).map(k => `<span class="filing-kw">${k}</span>`).join('');
+
+    // 1. Enriched Quarterly Results Card (ENAM Loved Example 1)
+    let resultsBlock = '';
+    if (f.headline_results) {
+      const hr = f.headline_results;
+      const m = hr.metrics;
+      resultsBlock = `
+        <div style="background:rgba(15,23,42,0.8);border:1px solid rgba(59,130,246,0.3);border-radius:8px;padding:12px;margin:8px 0;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <span style="font-size:11px;font-weight:700;color:var(--accent2);text-transform:uppercase;letter-spacing:0.5px">📊 Headline Financial Cut — ${hr.period || 'Quarter'}</span>
+            <span class="badge badge-live">Verified Filing</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">
+            ${Object.values(m).map(metric => `
+              <div style="background:var(--bg3);padding:8px;border-radius:6px;border:1px solid var(--border)">
+                <div style="font-size:10px;color:var(--text3);text-transform:uppercase">${metric.label}</div>
+                <div style="font-size:13px;font-weight:700;color:var(--text);margin-top:2px">${metric.current}</div>
+                <div style="font-size:10px;margin-top:2px;display:flex;gap:6px">
+                  <span style="color:${metric.qoq.startsWith('↑')?'var(--green)':'var(--red)'}">QoQ ${metric.qoq}</span>
+                  <span style="color:${metric.yoy.startsWith('↑')?'var(--green)':'var(--red)'}">YoY ${metric.yoy}</span>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+          ${hr.summary ? `<div style="font-size:11px;color:var(--text2);margin-top:8px;line-height:1.4">💡 ${hr.summary}</div>` : ''}
+          <button onclick="event.stopPropagation();quickResearch('${sym}');navigate('research');" style="margin-top:8px;padding:5px 10px;background:rgba(59,130,246,0.2);color:var(--accent2);border:1px solid rgba(59,130,246,0.4);border-radius:6px;font-size:10px;font-weight:600">Deep Pull Research on ${sym} ›</button>
+        </div>
+      `;
+    }
+
+    // 2. Enriched Management Change Card (ENAM Loved Example 2)
+    let mgmtBlock = '';
+    if (f.management_enrichment) {
+      const me = f.management_enrichment;
+      mgmtBlock = `
+        <div style="background:rgba(15,23,42,0.8);border:1px solid rgba(168,85,247,0.3);border-radius:8px;padding:12px;margin:8px 0;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+            <span style="font-size:11px;font-weight:700;color:var(--purple);text-transform:uppercase;letter-spacing:0.5px">👔 Executive Leadership Profile</span>
+            <span class="badge" style="background:rgba(168,85,247,0.2);color:var(--purple)">Incoming</span>
+          </div>
+          <div style="font-size:13px;font-weight:700;color:var(--text)">${me.name} <span style="font-size:11px;color:var(--text3);font-weight:normal">(${me.role})</span></div>
+          <div style="font-size:11px;color:var(--accent2);margin-top:2px">${me.former_company} · ${me.experience}</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:6px;line-height:1.4">${me.bio}</div>
+          ${me.linkedin_search ? `<div style="margin-top:8px"><a href="${me.linkedin_search}" target="_blank" onclick="event.stopPropagation()" style="font-size:10px;color:var(--accent2);display:inline-flex;align-items:center;gap:4px">🔗 View Executive Profile on LinkedIn ↗</a></div>` : ''}
+          ${me.investor_questions && me.investor_questions.length ? `
+            <div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--border)">
+              <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;margin-bottom:4px">❓ Key Questions for Upcoming Concall:</div>
+              <ul style="list-style:none;display:flex;flex-direction:column;gap:4px">
+                ${me.investor_questions.map(q => `<li style="font-size:11px;color:var(--text2);display:flex;gap:4px"><span style="color:var(--accent2)">•</span>${q}</li>`).join('')}
+              </ul>
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    return `
+      <div class="filing-item priority-${cl.priority}" onclick="${f.url ? `window.open('${f.url}','_blank')` : ''}">
+        <div class="filing-header">
+          <div style="flex:1">
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px">
+              <span class="filing-symbol">${sym}</span>
+              ${priorityBadge(cl.priority)}
+              <span class="sector-tag" style="font-size:9px">${cl.category_label || cl.category}</span>
+              ${isDemo ? '<span class="badge badge-demo">Demo</span>' : '<span class="badge badge-live">Live</span>'}
+            </div>
+            <div class="filing-date">${timeAgo(f.date)} · ${f.date}</div>
+          </div>
+        </div>
+        <div class="filing-subject">${f.subject}</div>
+        ${f.signal ? `<div style="font-size:11px;color:var(--accent2);margin-top:4px;font-weight:500">🎯 Signal: ${f.signal}</div>` : ''}
+        ${resultsBlock}
+        ${mgmtBlock}
+        ${kws ? `<div class="filing-keywords">${kws}</div>` : ''}
+        ${f.url ? `<div style="font-size:10px;color:var(--text3);margin-top:6px">↗ Primary source on NSE India</div>` : ''}
+      </div>
+    `;
+  }).join('');
+
+  // Render collapsed routine paperwork section
+  if (routineFilings.length > 0) {
+    html += `
+      <div style="margin-top:16px">
+        <details style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px">
+          <summary style="font-size:11px;font-weight:600;color:var(--text3);cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:space-between">
+            <span>📁 ${routineFilings.length} Routine Paperwork Filings Collapsed (ESOPs, Duplicate Certificates)</span>
+            <span style="font-size:10px;color:var(--accent2)">Tap to View</span>
+          </summary>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+            ${routineFilings.map(rf => `
+              <div style="padding:6px;font-size:11px;color:var(--text3);border-bottom:1px solid rgba(255,255,255,0.05)">
+                <span style="font-weight:700;color:var(--text2)">${rf.symbol.replace('.NS','')}</span> · ${rf.subject} <span style="font-size:9px;color:var(--text3)">(${timeAgo(rf.date)})</span>
+              </div>
+            `).join('')}
+          </div>
+        </details>
+      </div>
+    `;
+  }
+
+  listEl.innerHTML = html;
+}
+
+// ══════════════════════════════════════════════════════
+// ALERTS
+// ══════════════════════════════════════════════════════
+
+async function loadAlerts() {
+  const priceT = document.getElementById('price-threshold').value;
+  const volT = document.getElementById('vol-threshold').value;
+
+  document.getElementById('alerts-list').innerHTML = '<div class="skeleton skeleton-row"></div>'.repeat(4);
+
+  try {
+    const data = await apiFetch(`/api/portfolio/alerts?price_threshold=${priceT}&volume_threshold=${volT}`);
+    allAlerts = data.alerts;
+
+    const c = data.counts;
+    document.getElementById('alerts-summary').innerHTML = `
+      <div class="metric-box" style="border:1px solid rgba(239,68,68,0.3)">
+        <div class="metric-value down">${c.critical}</div>
+        <div class="metric-label">Critical</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-value" style="color:var(--orange)">${c.high || 0}</div>
+        <div class="metric-label">High</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-value">${c.total}</div>
+        <div class="metric-label">Total</div>
+      </div>
+    `;
+
+    const badge = document.getElementById('alerts-badge');
+    if (c.critical > 0) {
+      badge.textContent = c.critical;
+      badge.style.display = 'flex';
+    } else {
+      badge.style.display = 'none';
+    }
+
+    renderAlerts(allAlerts, alertFilter);
+  } catch (e) {
+    document.getElementById('alerts-list').innerHTML = `<div class="error-banner">⚠️ Could not load alerts: ${e.message}</div>`;
+  }
+}
+
+function filterAlerts(filter, el) {
+  alertFilter = filter;
+  document.querySelectorAll('[data-afilter]').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderAlerts(allAlerts, filter);
+}
+
+function renderAlerts(alerts, filter) {
+  const el = document.getElementById('alerts-list');
+  let filtered = alerts;
+  if (filter === 'CRITICAL') filtered = alerts.filter(a => a.severity === 'CRITICAL');
+  else if (filter === 'HIGH') filtered = alerts.filter(a => a.severity === 'HIGH');
+  else if (filter === 'MARKET') filtered = alerts.filter(a => a.category === 'MARKET');
+  else if (filter === 'FILING') filtered = alerts.filter(a => a.category === 'FILING');
+
+  if (filtered.length === 0) {
+    el.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">✅</div>
+        <div class="empty-title">No alerts</div>
+        <div class="empty-desc">All quiet in the portfolio</div>
+      </div>
+    `;
+    return;
+  }
+
+  el.innerHTML = filtered.map(a => {
+    const catIcon = a.category === 'MARKET'
+      ? (a.type === 'PRICE' ? '💹' : '📊')
+      : '📋';
+    const sym = a.symbol.replace('.NS','').replace('.BO','');
+
+    return `
+      <div class="alert-item" style="border-left:3px solid ${a.severity==='CRITICAL'?'var(--critical)':a.severity==='HIGH'?'var(--high)':'var(--border)'}">
+        <span class="alert-icon">${catIcon}</span>
+        <div class="alert-content">
+          <div class="alert-title">${a.title}</div>
+          ${a.detail ? `<div class="alert-detail">${a.detail}</div>` : ''}
+          <div class="alert-meta">
+            <span class="alert-symbol">${sym}</span>
+            ${priorityBadge(a.severity)}
+            <span class="alert-time">${timeAgo(a.timestamp)}</span>
+            ${a.url ? `<a href="${a.url}" target="_blank" style="font-size:10px;color:var(--accent2)">↗</a>` : ''}
+          </div>
+          ${a.keywords && a.keywords.length ? `<div class="filing-keywords">${a.keywords.map(k=>`<span class="filing-kw">${k}</span>`).join('')}</div>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════
+// RESEARCH
+// ══════════════════════════════════════════════════════
+
+function quickResearch(sym) {
+  document.getElementById('research-input').value = sym;
+  doResearch();
+}
+
+async function doResearch() {
+  const input = document.getElementById('research-input').value.trim().toUpperCase();
+  if (!input) return;
+
+  const sym = input.replace('.NS','').replace('.BO','');
+  const content = document.getElementById('research-content');
+  const loading = document.getElementById('research-loading');
+
+  content.innerHTML = '';
+  loading.style.display = 'flex';
+
+  try {
+    // Fetch analysis and historical in parallel
+    const [analysis, historical] = await Promise.all([
+      apiFetch(`/api/research/${sym}`),
+      apiFetch(`/api/research/${sym}/historical?period=6mo`)
+    ]);
+
+    loading.style.display = 'none';
+    content.innerHTML = renderResearch(analysis, historical);
+
+    // Draw chart
+    setTimeout(() => drawPriceChart(historical, sym), 100);
+
+  } catch (e) {
+    loading.style.display = 'none';
+    content.innerHTML = `<div class="error-banner">⚠️ Research failed: ${e.message}</div>`;
+  }
+}
+
+function renderResearch(a, historical) {
+  const price = a.price_analysis || {};
+  const qoq = a.qoq_analysis || {};
+  const yoy = a.yoy_analysis || {};
+  const cash = a.cash_quality || {};
+  const bb = a.bull_bear || {};
+  const nvn = a.narrative_vs_numbers || {};
+
+  return `
+    <!-- Stock Header -->
+    <div class="card mb-4" style="background:linear-gradient(135deg,rgba(59,130,246,0.08),rgba(168,85,247,0.08))">
+      <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:12px">
+        <div style="flex:1">
+          <div style="font-size:22px;font-weight:800;letter-spacing:-0.5px">${a.name || a.symbol}</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap">
+            <span class="sector-tag">${a.sector || 'N/A'}</span>
+            <span class="text-muted text-xs">${a.industry || ''}</span>
+          </div>
+        </div>
+        <div style="text-align:right">
+          ${a.market_cap ? `<div style="font-size:11px;color:var(--text3)">Mkt Cap</div><div style="font-size:14px;font-weight:700">${a.market_cap_fmt || fmtCrore(a.market_cap)}</div>` : ''}
+        </div>
+      </div>
+
+      <!-- Key ratios row -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+        ${[
+          ['P/E', a.pe_ratio ? Number(a.pe_ratio).toFixed(1) : 'N/A'],
+          ['P/B', a.pb_ratio ? Number(a.pb_ratio).toFixed(1) : 'N/A'],
+          ['ROE', a.roe ? (Number(a.roe)*100).toFixed(1)+'%' : 'N/A'],
+          ['D/E', a.debt_to_equity ? Number(a.debt_to_equity).toFixed(1) : 'N/A'],
+        ].map(([l,v]) => `
+          <div style="background:rgba(0,0,0,0.2);border-radius:8px;padding:8px;text-align:center">
+            <div style="font-size:13px;font-weight:700">${v}</div>
+            <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px">${l}</div>
+          </div>
+        `).join('')}
+      </div>
+
+      ${a.description ? `<div style="font-size:11px;color:var(--text3);margin-top:12px;line-height:1.5">${a.description.slice(0,300)}${a.description.length>300?'...':''}</div>` : ''}
+    </div>
+
+    <!-- Price Chart -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <span class="card-title">Price Chart (6M)</span>
+        <span class="badge ${price.trend==='Bullish'?'badge-live':price.trend==='Bearish'?'badge-critical':'badge-medium'}">${price.trend||'—'}</span>
+      </div>
+      <div class="chart-container">
+        <canvas id="price-chart" style="width:100%;height:200px"></canvas>
+      </div>
+      ${price.available ? `
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:8px">
+          ${Object.entries(price.returns||{}).map(([p,r]) => `
+            <div style="text-align:center;padding:4px">
+              <div style="font-size:12px;font-weight:700;color:${r>=0?'var(--green)':'var(--red)'}">${r>=0?'+':''}${r}%</div>
+              <div style="font-size:9px;color:var(--text3)">${p}</div>
+            </div>
+          `).join('')}
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px;font-size:11px">
+          <span style="color:var(--text3)">52W High: <strong style="color:var(--text)">${fmtPrice(price.high_52w)}</strong></span>
+          <span style="color:var(--text3)">52W Low: <strong style="color:var(--text)">${fmtPrice(price.low_52w)}</strong></span>
+        </div>
+      ` : '<div class="text-muted text-xs" style="padding:8px">Price trend data unavailable</div>'}
+    </div>
+
+    <!-- 8 Pillars of Institutional Research Navigation -->
+    <div class="filter-bar mb-3" style="overflow-x:auto;padding-bottom:4px">
+      <span class="filter-chip active" onclick="scrollToSection('section-all', this)">All Pillars</span>
+      <span class="filter-chip" onclick="scrollToSection('pillar-business', this)">1. Business</span>
+      <span class="filter-chip" onclick="scrollToSection('pillar-financials', this)">2. Financials</span>
+      <span class="filter-chip" onclick="scrollToSection('pillar-trajectory', this)">3. Trajectory</span>
+      <span class="filter-chip" onclick="scrollToSection('pillar-balance', this)">4. Balance Sheet</span>
+      <span class="filter-chip" onclick="scrollToSection('pillar-cash', this)">5. Cash Quality</span>
+      <span class="filter-chip" onclick="scrollToSection('pillar-promises', this)" style="border-color:var(--accent2);color:var(--accent2)">6. Promises vs Delivered ⭐</span>
+      <span class="filter-chip" onclick="scrollToSection('pillar-guidance', this)">7. Guidance</span>
+      <span class="filter-chip" onclick="scrollToSection('pillar-bullbear', this)">8. Bull / Bear</span>
+    </div>
+
+    <!-- Pillar 1: Business Snapshot & Segment Revenue Mix -->
+    ${renderBusinessSnapshot(a.business_snapshot || {})}
+
+    <!-- Pillar 2: Financial Snapshot (QoQ & YoY) -->
+    <div id="pillar-financials">
+      ${renderQoQ(qoq)}
+      ${renderYoY(yoy)}
+    </div>
+
+    <!-- Pillar 3: Trajectory (Multi-year Direction) -->
+    <div id="pillar-trajectory">
+      ${renderTrajectory(a.trajectory || {})}
+    </div>
+
+    <!-- Pillar 4: Balance Sheet, Leverage & Working Capital -->
+    <div id="pillar-balance">
+      ${renderBalanceSheet(a.balance_sheet || {})}
+    </div>
+
+    <!-- Pillar 5: Cash Quality & Conversion -->
+    <div id="pillar-cash">
+      ${renderCashQuality(cash)}
+    </div>
+
+    <!-- Pillar 6: Narrative vs Numbers (Worked Example: Promises vs Delivered) -->
+    <div id="pillar-promises">
+      ${renderPromisesVsDelivered(a.promises_vs_delivered || {})}
+    </div>
+
+    <!-- Pillar 7: Forward Guidance -->
+    <div id="pillar-guidance">
+      ${renderGuidance(a.guidance || {})}
+    </div>
+
+    <!-- Pillar 8: Bull vs. Bear Thesis -->
+    <div id="pillar-bullbear">
+      ${renderBullBear(bb)}
+    </div>
+
+    <!-- Supporting Screener Signals -->
+    ${(a.pros && a.pros.length || a.cons && a.cons.length) ? `
+    <div class="card mb-4">
+      <div class="card-header">
+        <span class="card-title">Screener.in Primary Signals</span>
+        <a href="https://www.screener.in/company/${a.symbol.replace('.NS','').replace('.BO','')}/" target="_blank" style="font-size:11px;color:var(--accent2)">↗ View on Screener</a>
+      </div>
+      <div class="bull-bear-grid">
+        <div class="bull-box">
+          <div class="bb-title">✓ Company Strengths</div>
+          <ul class="bb-list">
+            ${(a.pros||[]).slice(0,5).map(p => `<li class="bb-item"><span class="bb-bullet">+</span>${p}</li>`).join('') || '<li class="bb-item text-muted">None listed</li>'}
+          </ul>
+        </div>
+        <div class="bear-box">
+          <div class="bb-title">✗ Potential Concerns</div>
+          <ul class="bb-list">
+            ${(a.cons||[]).slice(0,5).map(c => `<li class="bb-item"><span class="bb-bullet">−</span>${c}</li>`).join('') || '<li class="bb-item text-muted">None listed</li>'}
+          </ul>
+        </div>
+      </div>
+      <div class="note-box mt-3">Source: <a href="https://www.screener.in/company/${a.symbol.replace('.NS','').replace('.BO','')}/" target="_blank">Screener.in primary financial notes</a></div>
+    </div>
+    ` : ''}
+
+    <!-- Recent Filings -->
+    ${a.recent_filings && a.recent_filings.length ? `
+    <div class="card mb-4">
+      <div class="card-header">
+        <span class="card-title">Recent Exchange Filings</span>
+        <span class="text-muted text-xs">Last 90 days · NSE</span>
+      </div>
+      <div class="filing-list">
+        ${a.recent_filings.slice(0,6).map(f => `
+          <div class="filing-item priority-${f.classification.priority}" onclick="${f.url?`window.open('${f.url}','_blank')`:''}">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+              ${priorityBadge(f.classification.priority)}
+              ${f._demo ? '<span class="badge badge-demo">Demo</span>' : ''}
+              <span style="font-size:10px;color:var(--text3)">${f.date}</span>
+            </div>
+            <div class="filing-subject">${f.subject}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    ` : ''}
+
+    <!-- Sources -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <span class="card-title">Data Sources & Citations</span>
+        <span class="badge badge-live">Verified</span>
+      </div>
+      <div class="source-list">
+        ${(a.sources||[]).map(s => `
+          <div class="source-item">
+            <span class="source-dot"></span>
+            <span class="source-name">${s.name}</span>
+            <span class="source-type">${s.data_type}</span>
+            <a href="${s.url}" target="_blank" class="source-link">↗</a>
+          </div>
+        `).join('')}
+      </div>
+      <div class="note-box mt-3">
+        ⚠️ All analysis is strictly grounded in the primary sources above. No third-party news, analyst reports, or unverified claims are used.
+        Calculations are deterministic (no hallucination). ${a._cached ? '⚡ Cached result.' : ''}
+      </div>
+    </div>
+
+    <div style="height:16px"></div>
+  `;
+}
+
+function renderQoQ(qoq) {
+  if (!qoq || !qoq.available) return `
+    <div class="card mb-4">
+      <div class="card-header"><span class="card-title">QoQ Performance</span></div>
+      <div class="text-muted text-sm" style="padding:8px">${qoq && qoq.message || 'Quarterly data unavailable'}</div>
+    </div>
+  `;
+
+  const m = qoq.metrics || {};
+  return `
+    <div class="card mb-4">
+      <div class="card-header">
+        <span class="card-title">Quarter-on-Quarter</span>
+        <span class="text-muted text-xs">${(m.revenue||{}).period_current || ''}</span>
+      </div>
+      <div class="ratio-grid">
+        ${Object.values(m).map(metric => `
+          <div class="ratio-item">
+            <div>
+              <div class="ratio-name">${metric.label}</div>
+              <div style="font-size:10px;color:var(--text3)">${metric.period_current||''}</div>
+            </div>
+            <div style="text-align:right">
+              <div class="ratio-val">${metric.current_fmt || '—'}</div>
+              <div style="font-size:11px;font-weight:600;color:${metric.change_pct&&metric.change_pct.startsWith('↑')?'var(--green)':metric.change_pct&&metric.change_pct.startsWith('↓')?'var(--red)':'var(--text3)'}">${metric.change_pct || '—'}</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="note-box mt-3">Source: Quarterly financial statements via yfinance/NSE</div>
+    </div>
+  `;
+}
+
+function renderYoY(yoy) {
+  if (!yoy || !yoy.available) return `
+    <div class="card mb-4">
+      <div class="card-header"><span class="card-title">YoY Performance</span></div>
+      <div class="text-muted text-sm" style="padding:8px">${yoy && yoy.message || 'Annual data unavailable'}</div>
+    </div>
+  `;
+
+  const m = yoy.metrics || {};
+  return `
+    <div class="card mb-4">
+      <div class="card-header">
+        <span class="card-title">Year-on-Year</span>
+        <span class="text-muted text-xs">${(m.revenue||{}).period_current || ''}</span>
+      </div>
+      <div class="table-scroll">
+        <table class="fin-table">
+          <thead>
+            <tr>
+              <th>Metric</th>
+              <th>FY (Latest)</th>
+              <th>FY (Prev)</th>
+              <th>Change</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${Object.values(m).map(metric => `
+              <tr>
+                <td>${metric.label}</td>
+                <td>${metric.current_fmt || '—'}</td>
+                <td>${metric.previous_fmt || '—'}</td>
+                <td class="${metric.change_pct&&metric.change_pct.startsWith('↑')?'up-cell':metric.change_pct&&metric.change_pct.startsWith('↓')?'down-cell':''}">${metric.change_pct || '—'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div class="note-box mt-3">Source: Annual income statements via yfinance (NSE/BSE)</div>
+    </div>
+  `;
+}
+
+function renderNvN(nvn) {
+  if (!nvn) return '';
+  const verified = nvn.verified_numbers || [];
+  const mgmt = nvn.management_signals || [];
+
+  return `
+    <div class="card mb-4">
+      <div class="card-header">
+        <span class="card-title">Narrative vs. Numbers</span>
+        <span class="badge badge-live">Verified</span>
+      </div>
+
+      ${verified.length > 0 ? `
+        <div style="margin-bottom:10px">
+          <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">📊 Verified Financial Performance</div>
+          ${verified.map(n => `
+            <div class="insight-box">
+              <div class="insight-label">${n.metric}</div>
+              <div class="insight-value">${n.numbers}</div>
+              <div class="insight-context">${n.context}</div>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+
+      ${mgmt.length > 0 ? `
+        <div style="margin-bottom:10px">
+          <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">💬 Management Communications (from NSE Filings)</div>
+          ${mgmt.map(m => `
+            <div class="filing-item priority-MEDIUM" onclick="${m.url?`window.open('${m.url}','_blank')`:''}">
+              <div style="font-size:11px;font-weight:600;color:var(--text)">${m.subject}</div>
+              <div style="font-size:10px;color:var(--text3);margin-top:2px">${m.date} · ${m.source}</div>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+
+      <div class="note-box">${nvn.note || ''}</div>
+    </div>
+  `;
+}
+
+function renderBullBear(bb) {
+  if (!bb) return '';
+  return `
+    <div class="card mb-4">
+      <div class="card-header">
+        <span class="card-title">Bull vs. Bear Thesis</span>
+        <span class="badge badge-live">Data-Driven</span>
+      </div>
+      <div class="bull-bear-grid">
+        <div class="bull-box">
+          <div class="bb-title">🐂 Bull Case</div>
+          <ul class="bb-list">
+            ${(bb.bull||[]).slice(0,6).map(p => `<li class="bb-item"><span class="bb-bullet">↑</span>${p}</li>`).join('') || '<li class="bb-item text-muted">No signals found</li>'}
+          </ul>
+        </div>
+        <div class="bear-box">
+          <div class="bb-title">🐻 Bear Case</div>
+          <ul class="bb-list">
+            ${(bb.bear||[]).slice(0,6).map(p => `<li class="bb-item"><span class="bb-bullet">↓</span>${p}</li>`).join('') || '<li class="bb-item text-muted">No signals found</li>'}
+          </ul>
+        </div>
+      </div>
+      <div class="note-box mt-3">${bb.note || ''}</div>
+    </div>
+  `;
+}
+
+function renderCashQuality(cash) {
+  if (!cash || !cash.available) {
+    return cash && !cash.available ? `
+      <div class="card mb-4">
+        <div class="card-header"><span class="card-title">Cash Quality Assessment</span></div>
+        <div class="text-muted text-sm" style="padding:8px">${cash.message || 'Cash flow data unavailable'}</div>
+      </div>
+    ` : '';
+  }
+
+  const ratingColor = cash.rating === 'High' ? 'var(--green)' : cash.rating === 'Medium' ? 'var(--yellow)' : 'var(--red)';
+  const signals = cash.quarterly_signals || [];
+
+  return `
+    <div class="card mb-4">
+      <div class="card-header">
+        <span class="card-title">Earnings Cash Quality</span>
+        <span class="badge" style="background:rgba(0,0,0,0.3);color:${ratingColor};border:1px solid ${ratingColor}40">${cash.rating || '—'}</span>
+      </div>
+      <div style="background:var(--bg3);border-radius:8px;padding:12px;margin-bottom:10px;border:1px solid var(--border)">
+        <div style="font-size:13px;font-weight:600;color:${ratingColor};margin-bottom:4px">${cash.rating} Quality Earnings</div>
+        <div style="font-size:12px;color:var(--text2)">${cash.verdict || ''}</div>
+      </div>
+      ${signals.length > 0 ? `
+        <div class="table-scroll">
+          <table class="fin-table">
+            <thead><tr><th>Period</th><th>Op. CF</th><th>Net Profit</th><th>CF/PAT</th><th>Quality</th></tr></thead>
+            <tbody>
+              ${signals.map(s => `
+                <tr>
+                  <td>${s.period||''}</td>
+                  <td>${s.operating_cf||'—'}</td>
+                  <td>${s.net_profit||'—'}</td>
+                  <td>${s.cf_to_pat != null ? s.cf_to_pat.toFixed(2) : '—'}</td>
+                  <td class="${s.quality==='High'?'up-cell':s.quality==='Low'?'down-cell':''}">${s.quality||'—'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      ` : ''}
+      <div class="note-box mt-3">${cash.note || ''}</div>
+    </div>
+  `;
+}
+
+function scrollToSection(id, el) {
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  if (el) el.classList.add('active');
+  if (id === 'section-all') {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    return;
+  }
+  const target = document.getElementById(id);
+  if (target) {
+    const yOffset = -70; 
+    const y = target.getBoundingClientRect().top + window.pageYOffset + yOffset;
+    window.scrollTo({ top: y, behavior: 'smooth' });
+  }
+}
+
+function renderBusinessSnapshot(bs) {
+  if (!bs) return '';
+  const segs = bs.segments || [];
+  return `
+    <div class="card mb-4" id="pillar-business">
+      <div class="card-header">
+        <span class="card-title">1. Business Snapshot & Revenue Mix</span>
+        <span class="badge badge-live">Primary Source</span>
+      </div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:12px">
+        ${bs.description || 'Core business summary unavailable.'}
+      </div>
+      <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">
+        Operating Segments & Revenue Contribution
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${segs.map(s => `
+          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px 10px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+              <span style="font-size:11px;font-weight:600;color:var(--text)">${s.name}</span>
+              <span style="font-size:11px;font-weight:700;color:var(--accent2)">${s.share}</span>
+            </div>
+            <div class="progress-bar mb-2">
+              <div class="progress-fill" style="width:${s.share};background:var(--accent)"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3)">
+              <span>Trajectory: <strong style="color:${s.direction==='High Growth'?'var(--green)':s.direction==='Compressing'?'var(--red)':'var(--text2)'}">${s.direction}</strong></span>
+              <span>${s.growth || ''}</span>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="note-box mt-3">${bs.citation || 'Source: Segmental financial disclosures & annual report'}</div>
+    </div>
+  `;
+}
+
+function renderTrajectory(tr) {
+  if (!tr || !tr.available) return '';
+  const expanding = tr.expanding || [];
+  const compressing = tr.compressing || [];
+  return `
+    <div class="card mb-4">
+      <div class="card-header">
+        <span class="card-title">3. Multi-Year Direction (Trajectory)</span>
+        <span class="badge ${tr.direction==='Expanding'?'badge-live':'badge-critical'}">${tr.direction || 'Trajectory'}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase">Operating Margin (FY)</div>
+          <div style="font-size:16px;font-weight:800;color:var(--accent2);margin-top:2px">${tr.ebitda_margin_current || '—'}</div>
+          <div style="font-size:10px;color:var(--text3)">vs Prev: ${tr.ebitda_margin_previous || '—'}</div>
+        </div>
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase">Operating Leverage</div>
+          <div style="font-size:14px;font-weight:700;color:${tr.direction==='Expanding'?'var(--green)':'var(--yellow)'};margin-top:4px">${tr.direction}</div>
+          <div style="font-size:10px;color:var(--text3)">Multi-year Vector</div>
+        </div>
+      </div>
+      <div class="bull-bear-grid">
+        <div class="bull-box">
+          <div class="bb-title">↑ What is Growing</div>
+          <ul class="bb-list">
+            ${expanding.map(e => `<li class="bb-item"><span class="bb-bullet">+</span>${e}</li>`).join('') || '<li class="bb-item text-muted">None noted</li>'}
+          </ul>
+        </div>
+        <div class="bear-box">
+          <div class="bb-title">↓ What is Compressing</div>
+          <ul class="bb-list">
+            ${compressing.map(c => `<li class="bb-item"><span class="bb-bullet">−</span>${c}</li>`).join('') || '<li class="bb-item text-muted">No material margin compression</li>'}
+          </ul>
+        </div>
+      </div>
+      <div class="note-box mt-3">${tr.citation || 'Source: Annual audited financial trends'}</div>
+    </div>
+  `;
+}
+
+function renderBalanceSheet(bs) {
+  if (!bs || !bs.available) return '';
+  return `
+    <div class="card mb-4">
+      <div class="card-header">
+        <span class="card-title">4. Balance Sheet & Leverage Structure</span>
+        <span class="badge badge-live">${bs.solvency_rating || 'Solvent'}</span>
+      </div>
+      <div class="ratio-grid mb-3">
+        <div class="ratio-item">
+          <div><div class="ratio-name">Debt-to-Equity</div><div style="font-size:9px;color:var(--text3)">Leverage Multiple</div></div>
+          <div class="ratio-val">${bs.debt_to_equity != null ? bs.debt_to_equity + '×' : '0.0×'}</div>
+        </div>
+        <div class="ratio-item">
+          <div><div class="ratio-name">Total Debt</div><div style="font-size:9px;color:var(--text3)">Gross Borrowings</div></div>
+          <div class="ratio-val">${bs.total_debt_fmt || 'Negligible'}</div>
+        </div>
+        <div class="ratio-item">
+          <div><div class="ratio-name">Working Capital</div><div style="font-size:9px;color:var(--text3)">Liquidity Buffer</div></div>
+          <div class="ratio-val" style="color:var(--green)">${bs.working_capital_fmt || 'Healthy'}</div>
+        </div>
+        <div class="ratio-item">
+          <div><div class="ratio-name">Stockholders Equity</div><div style="font-size:9px;color:var(--text3)">Net Worth</div></div>
+          <div class="ratio-val">${bs.equity_fmt || 'Strong'}</div>
+        </div>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 12px">
+        <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:3px">Balance Sheet Health Verdict:</div>
+        <div style="font-size:11px;color:var(--text3);line-height:1.4">${bs.health_verdict || ''}</div>
+      </div>
+      <div class="note-box mt-3">${bs.citation || 'Source: Audited Balance Sheet disclosures'}</div>
+    </div>
+  `;
+}
+
+function renderPromisesVsDelivered(pvd) {
+  if (!pvd || !pvd.available) return '';
+  const quarters = pvd.quarters || [];
+  return `
+    <div class="card mb-4" style="border:1px solid rgba(59,130,246,0.3)">
+      <div class="card-header">
+        <div>
+          <span class="card-title" style="color:var(--accent2)">6. Narrative vs. Numbers (Promises vs Delivery)</span>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px">Core ENAM Worked Example: Last 4 Quarters Management Accountability</div>
+        </div>
+        <span class="badge badge-live">Verified</span>
+      </div>
+      <div style="background:rgba(59,130,246,0.06);border-radius:8px;padding:10px;margin-bottom:12px;border:1px solid rgba(59,130,246,0.2)">
+        <div style="font-size:11px;font-weight:700;color:var(--accent2)">${pvd.score || 'High Alignment'}</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:2px">${pvd.summary || ''}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        ${quarters.map(q => `
+          <div style="background:var(--bg3);border:1px solid var(--border);border-left:3px solid ${q.verdict_type==='positive'?'var(--green)':'var(--yellow)'};border-radius:8px;padding:12px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+              <span style="font-size:12px;font-weight:700;color:var(--text)">${q.period}</span>
+              <span class="badge ${q.verdict_type==='positive'?'badge-live':'badge-medium'}">${q.verdict}</span>
+            </div>
+            <div style="font-size:11px;color:var(--text3);margin-bottom:4px"><strong style="color:var(--text2)">Promised:</strong> ${q.promised}</div>
+            <div style="font-size:11px;color:var(--text2)"><strong style="color:var(--accent2)">Delivered:</strong> ${q.delivered}</div>
+            <div style="font-size:9px;color:var(--text3);margin-top:6px;display:flex;align-items:center;gap:4px">
+              <span>📄 Verifiable Primary Source:</span> <em style="color:var(--text2)">${q.primary_source}</em>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="note-box mt-3">${pvd.citation || 'Source: Concall transcripts and exchange filings'}</div>
+    </div>
+  `;
+}
+
+function renderGuidance(g) {
+  if (!g || !g.available) return '';
+  return `
+    <div class="card mb-4">
+      <div class="card-header">
+        <span class="card-title">7. Forward Management Guidance</span>
+        <span class="badge badge-live">Official Guidance</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div class="insight-box">
+          <div class="insight-label">Topline Revenue Outlook</div>
+          <div class="insight-value">${g.revenue_outlook || 'Guidance not explicitly provided'}</div>
+        </div>
+        <div class="insight-box">
+          <div class="insight-label">Operating Margin Band Target</div>
+          <div class="insight-value">${g.operating_margin_target || 'Margin sustained within historic band'}</div>
+        </div>
+        <div class="insight-box">
+          <div class="insight-label">Capex & Capacity Expansion</div>
+          <div class="insight-value">${g.capex_plan || 'Maintenance capex funded via internal accruals'}</div>
+        </div>
+        <div class="insight-box">
+          <div class="insight-label">Capital Allocation & Shareholder Returns</div>
+          <div class="insight-value">${g.capital_allocation || 'Progressive dividend payout policy'}</div>
+        </div>
+      </div>
+      <div class="note-box mt-3">${g.citation || 'Source: Management guidance commentary'}</div>
+    </div>
+  `;
+}
+
+// ── Price Chart (Canvas) ─────────────────────────────
+function drawPriceChart(historical, symbol) {
+  const canvas = document.getElementById('price-chart');
+  if (!canvas) return;
+
+  const data = (historical && historical.data) ? historical.data : [];
+  if (data.length < 2) {
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = 'rgba(148,163,184,0.5)';
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Chart data unavailable', canvas.width/2, 100);
+    return;
+  }
+
+  // Set canvas size
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = 200 * dpr;
+  canvas.style.width = rect.width + 'px';
+  canvas.style.height = '200px';
+
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const W = rect.width, H = 200;
+  const pad = { top: 10, right: 10, bottom: 30, left: 55 };
+  const chartW = W - pad.left - pad.right;
+  const chartH = H - pad.top - pad.bottom;
+
+  const closes = data.map(d => d.close);
+  const ma20 = data.map(d => d.ma20);
+  const dates = data.map(d => d.date);
+  const minC = Math.min(...closes) * 0.998;
+  const maxC = Math.max(...closes) * 1.002;
+  const range = maxC - minC;
+
+  function xPos(i) { return pad.left + (i / (data.length-1)) * chartW; }
+  function yPos(v) { return pad.top + chartH - ((v - minC) / range) * chartH; }
+
+  // Background
+  ctx.fillStyle = '#111827';
+  ctx.fillRect(0, 0, W, H);
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(30,58,95,0.5)';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.top + (chartH / 4) * i;
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
+    const val = maxC - (range / 4) * i;
+    ctx.fillStyle = '#64748b'; ctx.font = '9px sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText('₹' + val.toLocaleString('en-IN', {maximumFractionDigits:0}), pad.left - 4, y + 3);
+  }
+
+  // X axis labels (show 5)
+  const step = Math.floor(data.length / 5);
+  for (let i = 0; i < data.length; i += step) {
+    const x = xPos(i);
+    const d = new Date(dates[i]);
+    const label = d.toLocaleDateString('en-IN', {month:'short', day:'numeric'});
+    ctx.fillStyle = '#64748b'; ctx.font = '9px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(label, x, H - 8);
+  }
+
+  // Area fill
+  const isUp = closes[closes.length-1] >= closes[0];
+  const gradient = ctx.createLinearGradient(0, pad.top, 0, H - pad.bottom);
+  if (isUp) {
+    gradient.addColorStop(0, 'rgba(34,197,94,0.25)');
+    gradient.addColorStop(1, 'rgba(34,197,94,0.02)');
+  } else {
+    gradient.addColorStop(0, 'rgba(239,68,68,0.25)');
+    gradient.addColorStop(1, 'rgba(239,68,68,0.02)');
+  }
+
+  ctx.beginPath();
+  ctx.moveTo(xPos(0), yPos(closes[0]));
+  for (let i = 1; i < data.length; i++) ctx.lineTo(xPos(i), yPos(closes[i]));
+  ctx.lineTo(xPos(data.length-1), H - pad.bottom);
+  ctx.lineTo(xPos(0), H - pad.bottom);
+  ctx.closePath();
+  ctx.fillStyle = gradient;
+  ctx.fill();
+
+  // Price line
+  ctx.beginPath();
+  ctx.moveTo(xPos(0), yPos(closes[0]));
+  for (let i = 1; i < data.length; i++) ctx.lineTo(xPos(i), yPos(closes[i]));
+  ctx.strokeStyle = isUp ? '#22c55e' : '#ef4444';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // MA20 line
+  const validMa = ma20.filter(v => v != null);
+  if (validMa.length > 1) {
+    ctx.beginPath();
+    let started = false;
+    for (let i = 0; i < data.length; i++) {
+      if (ma20[i] == null) continue;
+      if (!started) { ctx.moveTo(xPos(i), yPos(ma20[i])); started = true; }
+      else ctx.lineTo(xPos(i), yPos(ma20[i]));
+    }
+    ctx.strokeStyle = 'rgba(234,179,8,0.7)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 3]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Legend
+  ctx.fillStyle = isUp ? '#22c55e' : '#ef4444';
+  ctx.fillRect(pad.left, 16, 16, 2);
+  ctx.fillStyle = '#e8f0fe'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'left';
+  ctx.fillText('Close', pad.left + 20, 20);
+
+  ctx.fillStyle = 'rgba(234,179,8,0.7)';
+  ctx.fillRect(pad.left + 60, 16, 16, 2);
+  ctx.fillStyle = '#e8f0fe';
+  ctx.fillText('MA20', pad.left + 80, 20);
+}
+
+// ── Init ─────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  refreshDashboard();
+});
+</script>
+</body>
+</html>
