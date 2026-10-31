@@ -59,9 +59,3 @@ FINN delivers two end-to-end, production-ready workflows built without placehold
 1. **Portfolio P&L Integration**: Persistent portfolio tracking with personalized buy-price lots and weighted gain/loss attribution.
 2. **Automated Concall Audio Ingestion**: Direct transcription of quarterly earnings calls via Whisper API with automated QA sentiment shifts.
 3. **PWA Mobile Packaging**: ServiceWorker caching and Web Push notifications for real-time mobile push notifications when CRITICAL filings hit exchange servers.
-
----
-
-Sincerely,  
-**AI Engineer Candidate**  
-*ENAM Holdings - AI Engineer Build Challenge 2026*
