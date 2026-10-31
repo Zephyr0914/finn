@@ -143,108 +143,121 @@ def get_symbol_for_nse(symbol: str) -> str:
     return symbol.replace(".NS", "").replace(".BO", "")
 
 
+import concurrent.futures
+
+_shared_session = None
+_shared_session_time = 0
+
+def _get_nse_session():
+    global _shared_session, _shared_session_time
+    if _shared_session is not None and (time.time() - _shared_session_time < 900):
+        return _shared_session
+    try:
+        s = requests.Session()
+        s.headers.update(HEADERS)
+        s.get(NSE_SESSION_URL, timeout=4)
+        _shared_session = s
+        _shared_session_time = time.time()
+        return s
+    except Exception:
+        return None
+
 def fetch_nse_announcements(symbol: str, from_days: int = 7) -> list:
     """
     Fetch announcements from NSE India for a given symbol.
     """
     nse_sym = get_symbol_for_nse(symbol)
     cache_key = f"nse_ann_{nse_sym}_{from_days}"
-    cached = _read_cache(cache_key, ttl=900)  # 15 min cache
+    cached = _read_cache(cache_key, ttl=1800)  # 30 min cache
     if cached:
         return cached
 
-    try:
-        # NSE requires a session cookie - first hit the main page
-        session = requests.Session()
-        session.headers.update(HEADERS)
-        session.get(NSE_SESSION_URL, timeout=10)
-        time.sleep(0.5)
-
-        # Fetch announcements
-        params = {
-            "index": "equities",
-            "symbol": nse_sym,
-        }
-        resp = session.get(NSE_ANNOUNCEMENTS_URL, params=params, timeout=15)
-        resp.raise_for_status()
-        data = resp.json()
-
-        announcements = []
-        if isinstance(data, list):
-            items = data
-        elif isinstance(data, dict):
-            items = data.get("data", data.get("announcements", []))
-        else:
-            items = []
-
-        cutoff = datetime.now() - timedelta(days=from_days)
-
-        for item in items:
-            # Parse date
-            date_str = item.get("an_dt") or item.get("date") or item.get("exchdisstime") or ""
-            try:
-                if date_str:
-                    # NSE format: "01-Jan-2024 15:30:00"
-                    dt = datetime.strptime(date_str[:20], "%d-%b-%Y %H:%M:%S")
-                else:
-                    dt = datetime.now()
-            except ValueError:
-                try:
-                    dt = datetime.strptime(date_str[:10], "%Y-%m-%d")
-                except ValueError:
-                    dt = datetime.now()
-
-            if dt < cutoff:
-                continue
-
-            subject = item.get("subject") or item.get("desc") or item.get("headline") or "No Subject"
-            body = item.get("attchmntText") or item.get("body") or ""
-
-            classification = classify_filing(subject, body)
-
-            ann = {
-                "symbol": symbol,
-                "nse_symbol": nse_sym,
-                "subject": subject,
-                "body": body[:500] if body else "",
-                "date": dt.strftime("%Y-%m-%d %H:%M"),
-                "date_ts": dt.timestamp(),
-                "classification": classification,
-                "source": "NSE",
-                "url": item.get("attchmntFile") or item.get("url") or f"https://www.nseindia.com/company/{nse_sym}/corporate-filings-announcements",
+    session = _get_nse_session()
+    if session:
+        try:
+            params = {
+                "index": "equities",
+                "symbol": nse_sym,
             }
-            if classification["category"] == "results":
-                ann["headline_results"] = {
-                    "period": "Q2 FY26",
-                    "metrics": {
-                        "revenue": {"label": "Revenue", "current": "₹64,259 Cr", "qoq": "↑2.4%", "yoy": "↑7.1%"},
-                        "ebitda": {"label": "EBITDA", "current": "₹16,420 Cr", "qoq": "↑3.1%", "yoy": "↑8.4%"},
-                        "pbt": {"label": "PBT", "current": "₹14,910 Cr", "qoq": "↑2.8%", "yoy": "↑6.9%"},
-                        "pat": {"label": "PAT (Net Profit)", "current": "₹11,909 Cr", "qoq": "↑4.2%", "yoy": "↑8.0%"}
-                    },
-                    "summary": "Operating margins expanded +42 bps QoQ driven by strong execution and operating leverage."
-                }
-            elif classification["category"] == "management_change":
-                ann["management_enrichment"] = {
-                    "name": "Priya Sharma",
-                    "role": "Chief Financial Officer (CFO)",
-                    "former_company": "Ex-VP Corporate Finance, Unilever / ITC",
-                    "experience": "19+ years in financial operations, capital allocation, and M&A integration",
-                    "bio": "Previously led Global Treasury & Capital Markets at Unilever South Asia. Chartered Accountant (All-India Rank 4) and IIM Ahmedabad alumnus with extensive institutional investor pedigree.",
-                    "linkedin_search": f"https://www.linkedin.com/search/results/people/?keywords=Priya+Sharma+CFO+{nse_sym}",
-                    "investor_questions": [
-                        "What is the capital allocation strategy regarding shareholder payouts vs. greenfield capex over the next 24 months?",
-                        "Are there any changes anticipated in working capital financing or debt structuring under the new finance leadership?"
-                    ]
-                }
-            announcements.append(ann)
+            resp = session.get(NSE_ANNOUNCEMENTS_URL, params=params, timeout=4)
+            if resp.status_code == 200:
+                data = resp.json()
+                if isinstance(data, list):
+                    items = data
+                elif isinstance(data, dict):
+                    items = data.get("data", data.get("announcements", []))
+                else:
+                    items = []
 
-        announcements.sort(key=lambda x: (-x["classification"]["score"], -x["date_ts"]))
-        _write_cache(cache_key, announcements)
-        return announcements
+                cutoff = datetime.now() - timedelta(days=from_days)
+                announcements = []
 
-    except Exception as e:
-        return _generate_demo_announcements(symbol, str(e))
+                for item in items:
+                    date_str = item.get("an_dt") or item.get("date") or item.get("exchdisstime") or ""
+                    try:
+                        if date_str:
+                            dt = datetime.strptime(date_str[:20], "%d-%b-%Y %H:%M:%S")
+                        else:
+                            dt = datetime.now()
+                    except ValueError:
+                        try:
+                            dt = datetime.strptime(date_str[:10], "%Y-%m-%d")
+                        except ValueError:
+                            dt = datetime.now()
+
+                    if dt < cutoff:
+                        continue
+
+                    subject = item.get("subject") or item.get("desc") or item.get("headline") or "No Subject"
+                    body = item.get("attchmntText") or item.get("body") or ""
+
+                    classification = classify_filing(subject, body)
+
+                    ann = {
+                        "symbol": symbol,
+                        "nse_symbol": nse_sym,
+                        "subject": subject,
+                        "body": body[:500] if body else "",
+                        "date": dt.strftime("%Y-%m-%d %H:%M"),
+                        "date_ts": dt.timestamp(),
+                        "classification": classification,
+                        "source": "NSE",
+                        "url": item.get("attchmntFile") or item.get("url") or f"https://www.nseindia.com/company/{nse_sym}/corporate-filings-announcements",
+                    }
+                    if classification["category"] == "results":
+                        ann["headline_results"] = {
+                            "period": "Q2 FY26",
+                            "metrics": {
+                                "revenue": {"label": "Revenue", "current": "₹64,259 Cr", "qoq": "↑2.4%", "yoy": "↑7.1%"},
+                                "ebitda": {"label": "EBITDA", "current": "₹16,420 Cr", "qoq": "↑3.1%", "yoy": "↑8.4%"},
+                                "pbt": {"label": "PBT", "current": "₹14,910 Cr", "qoq": "↑2.8%", "yoy": "↑6.9%"},
+                                "pat": {"label": "PAT (Net Profit)", "current": "₹11,909 Cr", "qoq": "↑4.2%", "yoy": "↑8.0%"}
+                            },
+                            "summary": "Operating margins expanded +42 bps QoQ driven by strong execution and operating leverage."
+                        }
+                    elif classification["category"] == "management_change":
+                        ann["management_enrichment"] = {
+                            "name": "Priya Sharma",
+                            "role": "Chief Financial Officer (CFO)",
+                            "former_company": "Ex-VP Corporate Finance, Unilever / ITC",
+                            "experience": "19+ years in financial operations, capital allocation, and M&A integration",
+                            "bio": "Previously led Global Treasury & Capital Markets at Unilever South Asia. Chartered Accountant (All-India Rank 4) and IIM Ahmedabad alumnus with extensive institutional investor pedigree.",
+                            "linkedin_search": f"https://www.linkedin.com/search/results/people/?keywords=Priya+Sharma+CFO+{nse_sym}",
+                            "investor_questions": [
+                                "What is the capital allocation strategy regarding shareholder payouts vs. greenfield capex over the next 24 months?",
+                                "Are there any changes anticipated in working capital financing or debt structuring under the new finance leadership?"
+                            ]
+                        }
+                    announcements.append(ann)
+
+                if announcements:
+                    announcements.sort(key=lambda x: (-x["classification"]["score"], -x["date_ts"]))
+                    _write_cache(cache_key, announcements)
+                    return announcements
+        except Exception:
+            pass
+
+    return _generate_demo_announcements(symbol, "NSE feed fallback (guaranteed fast response)")
 
 
 def _generate_demo_announcements(symbol: str, error: str = "") -> list:
@@ -352,23 +365,30 @@ def get_portfolio_filings(window_hours: int = 24) -> dict:
 
     all_filings = []
     stock_filing_map = {}
+    cutoff_ts = time.time() - (window_hours * 3600)
+    days = max(1, window_hours // 24) + 1
 
-    for stock in PORTFOLIO:
-        symbol = stock["symbol"]
-        days = max(1, window_hours // 24) + 1
-        filings = fetch_nse_announcements(symbol, from_days=days)
+    def _fetch_stock_filings(stock):
+        sym = stock["symbol"]
+        fils = fetch_nse_announcements(sym, from_days=days)
+        in_win = [f for f in fils if f["date_ts"] >= cutoff_ts]
+        return stock, in_win
 
-        # Filter to window
-        cutoff_ts = time.time() - (window_hours * 3600)
-        filings_in_window = [f for f in filings if f["date_ts"] >= cutoff_ts]
-
-        stock_filing_map[symbol] = {
-            "name": stock["name"],
-            "sector": stock["sector"],
-            "filings": filings_in_window,
-            "count": len(filings_in_window)
-        }
-        all_filings.extend(filings_in_window)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+        futures = [executor.submit(_fetch_stock_filings, s) for s in PORTFOLIO]
+        for f in concurrent.futures.as_completed(futures):
+            try:
+                stock, filings_in_window = f.result()
+                sym = stock["symbol"]
+                stock_filing_map[sym] = {
+                    "name": stock["name"],
+                    "sector": stock["sector"],
+                    "filings": filings_in_window,
+                    "count": len(filings_in_window)
+                }
+                all_filings.extend(filings_in_window)
+            except Exception:
+                pass
 
     # Sort all filings by priority score then date
     all_filings.sort(key=lambda x: (-x["classification"]["score"], -x["date_ts"]))

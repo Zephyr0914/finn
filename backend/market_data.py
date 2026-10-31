@@ -117,24 +117,46 @@ def _empty_quote(symbol: str, error: str = "") -> dict:
     }
 
 
+import concurrent.futures
+
 def get_portfolio_quotes() -> list:
-    """Get quotes for all portfolio stocks."""
+    """Get quotes for all portfolio stocks with parallel fetching and robust caching."""
     cache_key = "portfolio_quotes"
-    cached = _read_cache(cache_key, ttl=120)
+    cached = _read_cache(cache_key, ttl=300)
     if cached:
         for q in cached:
             q["_cached"] = True
         return cached
 
     quotes = []
-    for stock in PORTFOLIO:
-        q = get_quote(stock["symbol"])
-        q["name"] = stock["name"]
-        q["sector"] = stock["sector"]
-        q["exchange"] = stock["exchange"]
-        quotes.append(q)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+        future_to_stock = {executor.submit(get_quote, stock["symbol"]): stock for stock in PORTFOLIO}
+        for future in concurrent.futures.as_completed(future_to_stock):
+            stock = future_to_stock[future]
+            try:
+                q = future.result()
+            except Exception as e:
+                # Attempt to get stale cache
+                stale = _read_cache(f"quote_{stock['symbol']}", ttl=86400 * 30)
+                if stale:
+                    q = stale
+                    q["_cached"] = True
+                else:
+                    q = _empty_quote(stock["symbol"], str(e))
+            q["name"] = stock["name"]
+            q["sector"] = stock["sector"]
+            q["exchange"] = stock["exchange"]
+            quotes.append(q)
 
-    _write_cache(cache_key, quotes)
+    # Preserve portfolio order
+    order = {s["symbol"]: i for i, s in enumerate(PORTFOLIO)}
+    quotes.sort(key=lambda q: order.get(q["symbol"], 999))
+
+    # If we got valid quotes, cache the portfolio quotes
+    valid_count = sum(1 for q in quotes if q.get("price"))
+    if valid_count > 0:
+        _write_cache(cache_key, quotes)
+
     return quotes
 
 
