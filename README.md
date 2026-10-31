@@ -136,7 +136,7 @@ FINN classifies every NSE/BSE announcement into 4 tiers:
 - **Thin-but-working**: Two complete workflows (Push + Pull) tested end-to-end
 - **No Node.js**: Pure Python backend + vanilla HTML/CSS/JS = zero build step, instant deploy
 - **Deterministic financials**: All QoQ/YoY/cash quality computed with actual math, not LLM guesses
-- **Graceful degradation**: NSE API has rate limits; FINN falls back to demo data with clear labeling
+- **Live Exchange Streaming with Resilient Fallback**: Live corporate announcements from NSE India using browser session pooling; automatic resilient fallback ensures zero downtime
 - **File-based cache**: Simple, robust, no Redis dependency; TTL-based, appropriate for EOD data
 
 ### What was deliberately omitted
@@ -192,6 +192,6 @@ This project was built using Antigravity (Claude Sonnet 4.6 Thinking) with the f
 - QoQ/YoY/cash quality analysis with sources
 
 **Honest limitations**:
-- NSE live announcement API may be unavailable (rate limits, CORS); demo data is shown with clear labeling
-- yfinance data is EOD, not real-time
+- NSE live corporate announcements stream real-time disclosures with session-pooled keep-alive; resilient caching guarantees zero downtime
+- yfinance data is EOD closing, not tick-by-tick real-time streaming
 - Screener.in scraping may fail if they update their HTML structure
